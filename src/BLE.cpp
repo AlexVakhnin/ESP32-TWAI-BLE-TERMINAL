@@ -106,8 +106,16 @@ void ble_setup(){
   pService->start();
 
   // Start advertising
-  BLEAdvertising *pAdvertising = pServer->getAdvertising();
+  BLEAdvertising *pAdvertising = pServer->getAdvertising(); // this still is working for backward compatibility ???????
+  //BLEAdvertising *pAdvertising = BLEDevice::getAdvertising(); //так правильней ???
   pAdvertising->start();
+  
+  //pAdvertising->addServiceUUID(SERVICE_UUID);
+  //pAdvertising->setScanResponse(true);
+  //pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  //pAdvertising->setMinPreferred(0x12);
+  //BLEDevice::startAdvertising();  //так правильней ???
+  
 
   Serial.print("BLE Server address: ");
   Serial.println(BLEDevice::getAddress().toString().c_str());

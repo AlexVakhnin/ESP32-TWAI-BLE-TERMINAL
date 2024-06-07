@@ -131,13 +131,15 @@ unsigned long currentMillis = millis();
 //Посылаем запрос по шине CAN для Service=1 (параметр=PID)
 void sendObdFrame(uint8_t obdId) {
 	CanFrame obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями !!!
-	obdFrame.identifier = 0x7DF; // Общий адрес ECU;
+	obdFrame.identifier = 0x7DF; // Общий адрес всех ECU;
 	obdFrame.extd = 0; //формат 11-бит
 	obdFrame.data_length_code = 8; //OBD2 frame - всегда 8 байт !
-  //obdFrame.ss = 1; //DEBUG Single Shot Transmission (UDP type)
-  //obdFrame.self = 1; //DEBUG..
+
+  //obdFrame.ss = 1; //DEBUG Single Shot Transmission (UDP type, без подтверждения..)
+  //obdFrame.self = 1; //DEBUG..??????????
+
 	obdFrame.data[0] = 2; //количество значимых байт во фрейме
-	obdFrame.data[1] = 1; //Service / Mode
+	obdFrame.data[1] = 1; //Service / Mode OBD2
 	obdFrame.data[2] = obdId; //PID OBD2
 	obdFrame.data[3] = 0xAA;    // Best to use 0xAA (0b10101010) instead of 0
 	obdFrame.data[4] = 0xAA;    // CAN works better this way as it needs
