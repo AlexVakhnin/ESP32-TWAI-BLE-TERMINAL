@@ -1,22 +1,19 @@
 #include <Arduino.h>
 #include <Ticker.h>
-
-//#include <BLEDevice.h>
-//#include <BLEServer.h>
-//#include <BLEUtils.h>
-//#include <BLE2902.h>
-
-
-//#define LOG_TWAI log_e
-//#define LOG_TWAI_TX log_e
-//#define LOG_TWAI_RX log_e
-
-#include <ESP32-TWAI-CAN.hpp>
+#include "driver/twai.h"
 
 // Default for ESP32 CAN
 #define CAN_TX		5
 #define CAN_RX		4
-CanFrame rxFrame; //CanFrame = twai_message_t (для приема фреймов)
+
+extern bool can_init();
+extern bool can_write(twai_message_t* frame);
+extern bool can_read(twai_message_t* frame);
+extern uint32_t can_tx_queue();
+extern uint32_t can_rx_queue();
+
+
+twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
 
 //Для UpTime
 Ticker hTicker;
@@ -61,27 +58,12 @@ void setup() {
 
   delay(10000);  //10 sec
 
-  //Драйвер CAN шины
-	ESP32Can.setPins(CAN_TX, CAN_RX);	
-  ESP32Can.setRxQueueSize(10);
-	ESP32Can.setTxQueueSize(10);
-  ESP32Can.setSpeed(ESP32Can.convertSpeed(500));
-
     //Старт CAN без параметров
-    if(ESP32Can.begin()) {
+    if(can_init()) {
         Serial.println("CAN bus started!");
     } else {
         Serial.println("CAN bus failed!");
     }
-
-/* 
-    //Старт CAN с параметрами
-    if(ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10)) {
-        Serial.println("CAN bus started!");
-    } else {
-        Serial.println("CAN bus failed!");
-    }
-*/
 
   disp_setup(); //OLED SSD1306 63X32
   ble_setup(); //start BLE server
@@ -108,21 +90,24 @@ void loop() {
 //Передаем пакеты CAN..
 unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >=interval) {
-
-    sendObdFrame(5); // Передача запроса по CAN шине.
+    if(can_tx_queue()<3){
+      sendObdFrame(5); // Передача запроса по CAN шине.
+    } else {
+      Serial.println("CAN BUS DOWN..");
+    }
     //ble_handle_tx();
     previousMillis = currentMillis;
   }
 
   // Принимаем пакеты CAN..
-  if(ESP32Can.readFrame(rxFrame, 1000)) {
+  if(can_read(&rxFrame)) {
       // Comment out if too many frames
-      Serial.printf("Received frame: %03X  \r\n", rxFrame.identifier);
-      if(rxFrame.identifier == 0x7E8) {   // Standard OBD2 frame responce ID
+      //Serial.printf("Received frame: %03X  \r\n", rxFrame.identifier);
+      //if(rxFrame.identifier == 0x7E8) {   // Standard OBD2 frame responce ID=0x7E8
           //Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
           handle_rx_message(rxFrame);
 
-      }
+      //}
   }
   //ble_handle_tx();
   //ble_handle();  //обработка сообщений от BLE connect/disconnect
@@ -130,7 +115,7 @@ unsigned long currentMillis = millis();
 
 //Посылаем запрос по шине CAN для Service=1 (параметр=PID)
 void sendObdFrame(uint8_t obdId) {
-	CanFrame obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями !!!
+	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями !!!
 	obdFrame.identifier = 0x7DF; // Общий адрес всех ECU;
 	obdFrame.extd = 0; //формат 11-бит
 	obdFrame.data_length_code = 8; //OBD2 frame - всегда 8 байт !
@@ -139,7 +124,7 @@ void sendObdFrame(uint8_t obdId) {
   //obdFrame.self = 1; //DEBUG..??????????
 
 	obdFrame.data[0] = 2; //количество значимых байт во фрейме
-	obdFrame.data[1] = 1; //Service / Mode OBD2
+	obdFrame.data[1] = 1;     //Service OBD2
 	obdFrame.data[2] = obdId; //PID OBD2
 	obdFrame.data[3] = 0xAA;    // Best to use 0xAA (0b10101010) instead of 0
 	obdFrame.data[4] = 0xAA;    // CAN works better this way as it needs
@@ -147,10 +132,10 @@ void sendObdFrame(uint8_t obdId) {
 	obdFrame.data[6] = 0xAA;
 	obdFrame.data[7] = 0xAA;
     // Accepts both pointers and references 
-    if(ESP32Can.writeFrame(obdFrame)){  // timeout defaults to 1 ms
-      Serial.printf("%s Frame sent: %03X tx_queue: %d\n",formatted_time ,obdFrame.identifier,ESP32Can.inTxQueue());
+    if(can_write(&obdFrame)){  // timeout defaults to 1 ms
+      Serial.printf("%s --Frame sent: %03X tx_queue: %d\r\n",formatted_time ,obdFrame.identifier,can_tx_queue());
     } else {
-      Serial.printf("%s tx_queue: %d\n",formatted_time,ESP32Can.inTxQueue());
+      Serial.printf("%s tx_queue: %d\r\n",formatted_time,can_tx_queue());
     }
 }
 
@@ -163,9 +148,9 @@ void handle_rx_message(twai_message_t& message) {
     Serial.print("CAN: 0x");
   }
   Serial.print(message.identifier, HEX);
-  Serial.print(" (");
-  Serial.print(message.identifier, DEC);
-  Serial.print(")");
+  //Serial.print(" (");
+  Serial.print(" rx_queue: "+String(can_rx_queue()));
+  //Serial.print(")");
   Serial.print(" [");
   Serial.print(message.data_length_code, DEC);
   Serial.print("] <");
