@@ -77,10 +77,6 @@ void setup() {
  
 //Serial.println("I2C_SDA= "+String(SDA));
 //Serial.println("I2C_SCL= "+String(SCL));
-//Serial.println("SPI_SCK= "+String(SCK));
-//Serial.println("SPI_MOSI= "+String(MOSI));
-//Serial.println("SPI_MISO= "+String(MISO));
-//Serial.println("SPI_SS= "+String(SS));
 Serial.println("-----------------------------------------");
  
 }

@@ -1,11 +1,6 @@
 #include <Arduino.h>
 #include "driver/twai.h"
 
-
-//typedef twai_message_t CanFrame; //переопределяем название структуры
-//#define TWAI_SPEED_500KBPS 9U
-//#define TWAI_SPEED_SIZE 12U
-
 int8_t tx = 5;  //pin для tx
 int8_t rx = 4;  //pin для rx
 uint16_t txQueueSize = 10; //очередь tx
@@ -37,8 +32,6 @@ bool can_init(){
     } else {
         Serial.println("Failed to start driver");
     }
-        //if(!rez) end();
-
     return rez;
 }
 
