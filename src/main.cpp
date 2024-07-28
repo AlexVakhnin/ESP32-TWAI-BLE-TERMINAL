@@ -98,15 +98,11 @@ unsigned long currentMillis = millis();
   // Принимаем пакеты CAN..
   if(can_read(&rxFrame)) {
       // Comment out if too many frames
-      //Serial.printf("Received frame: %03X  \r\n", rxFrame.identifier);
-      //if(rxFrame.identifier == 0x7E8) {   // Standard OBD2 frame responce ID=0x7E8
-          //Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
-          handle_rx_message(rxFrame);
-
-      //}
+      handle_rx_message(rxFrame);
+      if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   // Standard OBD2 frame responce ID=0x7E8
+          Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
+      }
   }
-  //ble_handle_tx();
-  //ble_handle();  //обработка сообщений от BLE connect/disconnect
 }
 
 //Посылаем запрос по шине CAN для Service=1 (параметр=PID)
