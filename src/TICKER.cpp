@@ -10,7 +10,7 @@ unsigned long ihour = 0;
 unsigned long imin = 0;
 unsigned long isec = 0;
 unsigned long iday = 0;
-boolean led_state = false;
+//boolean led_state = false;
 
 //вычислить uptime д/ч/м/с (вызывается с периодом 1 сек)
 void get_uptime(){
@@ -35,6 +35,6 @@ formatted_time = locTime; //'hh:mm:ss'
 ds2=String(iday)+" "+formatted_time;//String(ihour)+":"+String(imin)+":"+String(isec);
 disp_show();
 
-if (led_state){ digitalWrite(8, HIGH);led_state=false;}
-else {digitalWrite(8, LOW);led_state=true;}
+//if (led_state){ digitalWrite(8, HIGH);led_state=false;}
+//else {digitalWrite(8, LOW);led_state=true;}
 }

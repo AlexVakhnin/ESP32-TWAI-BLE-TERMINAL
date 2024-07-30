@@ -16,7 +16,7 @@ extern void t_1s_job();
 extern void disp_setup();
 extern void disp_show();
 extern void ble_setup();
-extern void ble_handle_tx();
+//extern void ble_handle_tx();
 
 void sendObdFrame(uint8_t obdId);
 void handle_rx_message(twai_message_t& message);
@@ -24,6 +24,7 @@ void handle_rx_message(twai_message_t& message);
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
 
+String dev_name = "ODB2-BLE-GATE"; //name of BLE service
 String formatted_time = "--:--:--"; // "hh:mm:ss"
 
 twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
@@ -41,7 +42,7 @@ void setup() {
 
   //internal led
   pinMode(8, OUTPUT);
-  digitalWrite(8, LOW);
+  digitalWrite(8, HIGH); //OFF
 
 
   delay(10000);  //10 sec
