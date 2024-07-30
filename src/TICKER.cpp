@@ -1,22 +1,16 @@
-
 #include <Arduino.h>
 
-//Global Variables
-extern unsigned long sFreeMem;
-extern unsigned long sUpTime;
-//extern unsigned long g3Time;
-//extern unsigned long g2Time;
-//extern unsigned long g1Time;
-extern unsigned long ihour;
-extern unsigned long imin;
-extern unsigned long isec;
-extern unsigned long iday;
-extern String formatted_time;
-//extern float vsens;
-extern boolean led_state;
 extern String ds2;
 extern void disp_show();
+extern String formatted_time;
 
+//Local Variables
+unsigned long sUpTime = 0; //счетчик посекундно
+unsigned long ihour = 0;
+unsigned long imin = 0;
+unsigned long isec = 0;
+unsigned long iday = 0;
+boolean led_state = false;
 
 //вычислить uptime д/ч/м/с (вызывается с периодом 1 сек)
 void get_uptime(){
@@ -30,8 +24,6 @@ void get_uptime(){
     iday = n/24; //количество всех дней (целая часть)
 }
 
-
-
 // Функцию вызывает Ticker с периодом 1 сек.
 void t_1s_job(){
 get_uptime();
@@ -40,7 +32,7 @@ char locTime[9];
 sprintf(locTime, "%02d:%02d:%02d", ihour, imin, isec);
 formatted_time = locTime; //'hh:mm:ss'
 
-ds2=String(iday)+" "+String(ihour)+":"+String(imin)+":"+String(isec);
+ds2=String(iday)+" "+formatted_time;//String(ihour)+":"+String(imin)+":"+String(isec);
 disp_show();
 
 if (led_state){ digitalWrite(8, HIGH);led_state=false;}

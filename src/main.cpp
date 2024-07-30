@@ -12,39 +12,27 @@ extern bool can_read(twai_message_t* frame);
 extern uint32_t can_tx_queue();
 extern uint32_t can_rx_queue();
 
-
-twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
-
-//Для UpTime
-Ticker hTicker;
-
-//Function Declaration
 extern void t_1s_job();
 extern void disp_setup();
 extern void disp_show();
 extern void ble_setup();
-//extern void ble_handle();
 extern void ble_handle_tx();
+
 void sendObdFrame(uint8_t obdId);
 void handle_rx_message(twai_message_t& message);
 
-//Global Variables
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
 
-unsigned long sFreeMem; //хранит колич. свободной RAM (куча)
-unsigned long sUpTime = 0; //счетчик UpTime, в начале = 0 sec
-unsigned long isec = 0; //uptime: sec
-unsigned long imin = 0; //uptime: min
-unsigned long ihour = 0; //uptime: hour
-unsigned long iday = 0; //uptime: day
-boolean led_state = false;
-//boolean can_state = false;  //DEBUG
+String formatted_time = "--:--:--"; // "hh:mm:ss"
+
+twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
 
 String ds1 = ""; //дисплей-строка 1
 String ds2 = ""; //дисплей-строка 2
-String formatted_time = "--:--:--"; // "hh:mm:ss"
 
+//Для UpTime
+Ticker hTicker;
 
 
 void setup() {
@@ -87,11 +75,10 @@ void loop() {
 unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >=interval) {
     if(can_tx_queue()<3){
-      sendObdFrame(5); // Передача запроса по CAN шине.
+      sendObdFrame(5); // Передача запроса по CAN шине.(obd2 pid=5)
     } else {
       Serial.println("CAN BUS DOWN..");
     }
-    //ble_handle_tx();
     previousMillis = currentMillis;
   }
 
@@ -111,10 +98,6 @@ void sendObdFrame(uint8_t obdId) {
 	obdFrame.identifier = 0x7DF; // Общий адрес всех ECU;
 	obdFrame.extd = 0; //формат 11-бит
 	obdFrame.data_length_code = 8; //OBD2 frame - всегда 8 байт !
-
-  //obdFrame.ss = 1; //DEBUG Single Shot Transmission (UDP type, без подтверждения..)
-  //obdFrame.self = 1; //DEBUG..??????????
-
 	obdFrame.data[0] = 2; //количество значимых байт во фрейме
 	obdFrame.data[1] = 1;     //Service OBD2
 	obdFrame.data[2] = obdId; //PID OBD2
@@ -123,7 +106,7 @@ void sendObdFrame(uint8_t obdId) {
 	obdFrame.data[5] = 0xAA;    // to avoid bit-stuffing
 	obdFrame.data[6] = 0xAA;
 	obdFrame.data[7] = 0xAA;
-    // Accepts both pointers and references 
+    //передача пакета
     if(can_write(&obdFrame)){  // timeout defaults to 1 ms
       Serial.printf("%s --Frame sent: %03X tx_queue: %d\r\n",formatted_time ,obdFrame.identifier,can_tx_queue());
     } else {
