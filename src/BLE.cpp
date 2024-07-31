@@ -5,45 +5,13 @@
 #include <BLE2902.h>
 #include <Preferences.h>
 
-//const int orange_pin = 20;
-//extern int orange_pin;
-
 //Declaration
-//void storage_factor_u(String su);
-//void storage_factor1_u(String su);
-//void storage_adc_u(String su);
-//void storage_alarm_h(String su);
-//void storage_alarm_l(String su);
 void storage_dev_name(String dname);
 void help_print();
 void reset_nvram();
-//extern void disp_show();
-//extern void disp_main();
-//Global Variables
 extern String ds1;
 extern String ds2;
 extern String dev_name;
-//extern int sens_value;
-//extern int sens1_value;
-//extern float sens_voltage;
-//extern float sens1_voltage;
-//extern float real_voltage;
-//extern float real1_voltage;
-//extern double factor; //(nvram)
-//extern double factor1; //(nvram)
-//extern double adc_calibr; //(nvram)
-//extern float alarm_h; //(nvram)
-//extern float alarm_l; //(nvram)
-//extern boolean ble_indicate;
-//extern long ble_pcounter;
-//extern long ble_period;
-//extern long pause_counter;
-//extern boolean doShutdown;
-//extern boolean doPowerOn;
-//extern boolean doPause;
-//extern String dispstatus;
-//extern int zone_flag;
-//extern boolean ac220v_flag;
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
@@ -57,8 +25,8 @@ Preferences preferences; //for NVRAM
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
-#define SERVICE_UUID        "450475bb-56a2-4c97-9973-301831e65a30"
-#define CHARACTERISTIC_UUID "d8182a40-7316-4cbf-9c6e-be507a76d775"
+#define SERVICE_UUID        "f0717496-ab77-4ebc-9705-eff9b74e5c39"
+#define CHARACTERISTIC_UUID "916cc1fc-7111-48e7-a511-80b76a4df530"
 
 //Declaration
 void ble_handle_tx(String str );
@@ -81,8 +49,6 @@ class MyServerCallbacks: public BLEServerCallbacks {
       //    pServer->disconnect(param->connect.conn_id) ;//force disconnect client..
       //}
       Serial.print("Event-Connect..");Serial.println(remoteAddress);
-      //ble_indicate = true; //захват дисплея
-      //ds1="R:";ds2="S:";disp_show(); //вывод на дисплей
       deviceConnected = true;
       digitalWrite(8, LOW); //led = ON (DEBUG..)
     };
@@ -90,11 +56,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
       Serial.println("Event-Disconnect..");
-      //ble_period=ble_pcounter; //время между BLE опросами
-      //ble_pcounter=0;
-      //disp_main(); //обмен BLE закончен, показать основной экран
-      //ble_indicate = false; //отпускаем дисплей
-      delay(300); // give the bluetooth stack the chance to get things ready
+      delay(100); // give the bluetooth stack the chance to get things ready
       BLEDevice::startAdvertising();  // restart advertising
       digitalWrite(8, HIGH); //led = OFF (DEBUG..)
     }
@@ -109,12 +71,10 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             //печатаем строку от BLE
             String pstr = String(rxValue.c_str());
             Serial.print("BLE received Value: ");Serial.print(pstr);
-            //ds1="R:"+pstr; disp_show();//вывод на дисплей
             
             // Do stuff based on the command received from the app
             if (pstr=="at"||pstr=="at\r\n") {     //at
                 ble_handle_tx("OK"); //sensor number
-                //ds2="S:OK";disp_show(); //вывод на дисплей
             }
             else if (pstr=="at?"||pstr=="at?\r\n") { //at? - help
                 help_print();
@@ -123,9 +83,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                 reset_nvram();
             }            
             else if (pstr=="ati"||pstr=="ati\r\n") { //ati - information
-              //String zone="";String ac220="";
-              //if(zone_flag==1) {zone ="HIGH";} else if(zone_flag==2) {zone ="LOW";} else {zone ="MIDDLE";}
-              //if(ac220v_flag) {ac220="ON";} else {ac220="OFF";}  
               String s ="name="+dev_name;
                   //+"\r\ntimeout="+String(pause_counter)
                   //+"\r\nstatus="+dispstatus
@@ -234,57 +191,7 @@ void ble_handle_tx(String str){
     }
 
 }
-/*
-//калибровка делителя 0 через U (вводим напряжение)
-void storage_factor_u(String su){
-  float test_volt=su.toFloat(); //округляет до 2-х знаков после дес. точки...???
-  factor = test_volt/sens_voltage;
-  Serial.println("new factor="+String(factor));
-  ble_handle_tx("new factor="+String(factor)); //ответ на BLE
 
-  preferences.begin("hiveMon", false);
-  preferences.putDouble("att_factor", factor);
-  preferences.end();
-}
-//калибровка делителя 1 через U (вводим напряжение)
-void storage_factor1_u(String su){
-  float test_volt=su.toFloat(); //округляет до 2-х знаков после дес. точки...???
-  factor1 = test_volt/sens1_voltage;
-  Serial.println("new factor1="+String(factor1));
-  ble_handle_tx("new factor1="+String(factor1)); //ответ на BLE
-
-  preferences.begin("hiveMon", false);
-  preferences.putDouble("att_factor1", factor1);
-  preferences.end();
-}
-
-//калибровка ADC через U (вводим напряжение)
-void storage_adc_u(String su){
-  float test_volt=su.toFloat();
-  adc_calibr = test_volt*4096/sens_value;
-  Serial.println("new adc_calibr="+String(adc_calibr));
-  ble_handle_tx("new adc_calibr="+String(adc_calibr)); //ответ на BLE
-
-  preferences.begin("hiveMon", false);
-  preferences.putDouble("adc_calibr", adc_calibr);
-  preferences.end();
-}
-//
-void storage_alarm_h(String su){
-  alarm_h = su.toFloat();
-  ble_handle_tx("new alarm_h="+String(alarm_h)); //ответ на BLE
-  preferences.begin("hiveMon", false);
-  preferences.putFloat("alarm_h", alarm_h);
-  preferences.end();
-}
-void storage_alarm_l(String su){
-  alarm_l = su.toFloat();
-  ble_handle_tx("new alarm_l="+String(alarm_l)); //ответ на BLE
-  preferences.begin("hiveMon", false);
-  preferences.putFloat("alarm_l", alarm_l);
-  preferences.end();
-}
-*/
 void storage_dev_name(String dname){
   //Нужно удалить \r\n в конце строки..
   int n = dname.length(); 
