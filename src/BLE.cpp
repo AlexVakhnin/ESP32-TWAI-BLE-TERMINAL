@@ -5,13 +5,18 @@
 #include <BLE2902.h>
 #include <Preferences.h>
 
-//Declaration
-void storage_dev_name(String dname);
-void help_print();
-void reset_nvram();
 extern String ds1;
 extern String ds2;
 extern String dev_name;
+extern bool flag_cycle;
+extern uint8_t send_content[];
+extern char str_hex[24];
+
+void storage_dev_name(String dname);
+void storage_send_content();
+void help_print();
+void reset_nvram();
+void str_hex_arr8();
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
@@ -19,8 +24,6 @@ bool deviceConnected = false;
 uint32_t value = 0;
 
 Preferences preferences; //for NVRAM
-
-
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -56,7 +59,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
       Serial.println("Event-Disconnect..");
-      delay(100); // give the bluetooth stack the chance to get things ready
+      delay(300); // give the bluetooth stack the chance to get things ready
       BLEDevice::startAdvertising();  // restart advertising
       digitalWrite(8, HIGH); //led = OFF (DEBUG..)
     }
@@ -83,17 +86,24 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                 reset_nvram();
             }            
             else if (pstr=="ati"||pstr=="ati\r\n") { //ati - information
-              String s ="name="+dev_name;
-                  //+"\r\ntimeout="+String(pause_counter)
+                str_hex_arr8(); //конвертация в HEX из send_content[]
+              String s ="name="+dev_name
+                  +"\r\nsend_cont="+String(str_hex)
                   //+"\r\nstatus="+dispstatus
-                  //+"\r\nzone="+zone
-                  //+"\r\nac220v="+ac220
-                  //+"\r\nrelay="+String(digitalRead(orange_pin))
-                  //+"\r\nalarm_h="+String(alarm_h)
-                  //+"\r\nalarm_l="+String(alarm_l) 
-                  //+"\r\nreal_voltage="+String(real_voltage);
-                ble_handle_tx(s); //information for debug
+                  +"\r\nflag_cycle="+String(flag_cycle);
+                ble_handle_tx(s); //send string to BLE client
             }
+            else if (pstr=="atc0"||pstr=="atc0\r\n") { //cycle = on
+                flag_cycle = false;
+                ble_handle_tx("cycle=off");
+            }            
+            else if (pstr=="atc1"||pstr=="atc1\r\n") { //cycle = off
+                flag_cycle = true;
+                ble_handle_tx("cycle=on");
+            }            
+            else if (pstr=="ats"||pstr=="ats\r\n") { //storage send_content
+                storage_send_content();
+            }            
             
             else if (pstr.substring(0,4)=="atn=") { //atn= - dev_name save NVRAM
                 storage_dev_name(pstr.substring(4)); //dev_name
@@ -125,11 +135,9 @@ void ble_setup(){
   //читаем все параметры NVRAM
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
   //factor = preferences.getDouble("att_factor", 5.00);
-  //factor1 = preferences.getDouble("att_factor1", 5.00);
-  //adc_calibr = preferences.getDouble("adc_calibr", 3.00);//default adc_calibr=3.00 Volt !!!
- // alarm_h = preferences.getFloat("alarm_h", 11.5);
-  //alarm_l = preferences.getFloat("alarm_l", 10.0);// BMS-3S-1 отключает при уровне 9.3 вольта..
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
+  int len = preferences.getBytes("send_content", send_content, 8);
+  Serial.println("send_content Len = "+String(len));
   preferences.end(); //закрываем NVRAM
 
   // Create the BLE Device
@@ -191,7 +199,12 @@ void ble_handle_tx(String str){
     }
 
 }
-
+void storage_send_content(){
+    preferences.begin("hiveMon", false);
+    preferences.putBytes("send_content", send_content, 8);
+    preferences.end();
+    ble_handle_tx("send_content saved..");   
+}
 void storage_dev_name(String dname){
   //Нужно удалить \r\n в конце строки..
   int n = dname.length(); 
@@ -205,18 +218,11 @@ void storage_dev_name(String dname){
 }
 
 void help_print(){
-  String  shelp="ati -parameter list";
-          shelp+="\r\natс -calibration parameter list";
-          shelp+="\r\natv -resulting voltage";
-          shelp+="\r\natz -set default parameters";
-          shelp+="\r\nata=[U_ADC_in] -ADC calibration";
-          shelp+="\r\natu=[U_in] -attenuator 0 calibration";
-          shelp+="\r\natu1=[U1_in] -attenuator 1 calibration";
-          shelp+="\r\nath=[U] -alarm H Voltage";
-          shelp+="\r\natl=[U] -alarm L Voltage";
-          shelp+="\r\natn=[name] -BLE device name";
-          shelp+="\r\ndhutdown -orange pi shutdown";
-          shelp+="\r\npoweron -orange pi power on";
+  String  shelp="ati - parameter list";
+        shelp+="\r\natn=[name] - BLE device name";
+        shelp+="\r\natc0 - cycle off";
+        shelp+="\r\natc1 - cycle on";
+        shelp+="\r\nats - save last send_content";
   ble_handle_tx(shelp);
 }
 void reset_nvram(){
@@ -226,4 +232,9 @@ void reset_nvram(){
   ble_handle_tx("NVRAM Key Reset.."); //ответ на BLE
   delay(3000);
   ESP.restart();
+}
+void str_hex_arr8 (){
+      sprintf( str_hex , "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+      send_content[0], send_content[1], send_content[2], send_content[3],
+      send_content[4], send_content[5], send_content[6], send_content[7] );
 }

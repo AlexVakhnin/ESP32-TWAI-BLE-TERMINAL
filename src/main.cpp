@@ -16,24 +16,30 @@ extern void t_1s_job();
 extern void disp_setup();
 extern void disp_show();
 extern void ble_setup();
+extern void str_hex_arr8 ();
 //extern void ble_handle_tx();
 
-void sendObdFrame(uint8_t obdId);
+void sendObdFrame();
 void handle_rx_message(twai_message_t& message);
 
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
+bool flag_cycle = false;
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
-String formatted_time = "--:--:--"; // "hh:mm:ss"
-
-twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
-
+uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)
+  2,      //количество значимых байт во фрейме
+  1,      //Service OBD2
+  5,      //PID OBD2
+  0xAA,0xAA,0xAA,0xAA,0xAA  //Best to use 0xAA (0b10101010) instead of 0
+};
+char str_hex[24]; //буфер для перевода в HEX
+String formatted_time = "00:00:00"; // "hh:mm:ss"
 String ds1 = ""; //дисплей-строка 1
 String ds2 = ""; //дисплей-строка 2
 
-//Для UpTime
-Ticker hTicker;
+Ticker hTicker;  //Для UpTime
+twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
 
 
 void setup() {
@@ -74,9 +80,9 @@ void loop() {
 
 //Передаем пакеты CAN..
 unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >=interval) {
+  if (currentMillis - previousMillis >=interval && flag_cycle) {
     if(can_tx_queue()<3){
-      sendObdFrame(5); // Передача запроса по CAN шине.(obd2 pid=5)
+      sendObdFrame(); // Передача запроса по CAN шине.(obd2 pid=5)
     } else {
       Serial.println("CAN BUS DOWN..");
     }
@@ -94,22 +100,18 @@ unsigned long currentMillis = millis();
 }
 
 //Посылаем запрос по шине CAN для Service=1 (параметр=PID)
-void sendObdFrame(uint8_t obdId) {
+void sendObdFrame() {
 	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями !!!
 	obdFrame.identifier = 0x7DF; // Общий адрес всех ECU;
 	obdFrame.extd = 0; //формат 11-бит
 	obdFrame.data_length_code = 8; //OBD2 frame - всегда 8 байт !
-	obdFrame.data[0] = 2; //количество значимых байт во фрейме
-	obdFrame.data[1] = 1;     //Service OBD2
-	obdFrame.data[2] = obdId; //PID OBD2
-	obdFrame.data[3] = 0xAA;    // Best to use 0xAA (0b10101010) instead of 0
-	obdFrame.data[4] = 0xAA;    // CAN works better this way as it needs
-	obdFrame.data[5] = 0xAA;    // to avoid bit-stuffing
-	obdFrame.data[6] = 0xAA;
-	obdFrame.data[7] = 0xAA;
+  for(int i=0;i<8;i++)
+	        obdFrame.data[i] = send_content[i];  //формируем пакет obd2
     //передача пакета
     if(can_write(&obdFrame)){  // timeout defaults to 1 ms
-      Serial.printf("%s --Frame sent: %03X tx_queue: %d\r\n",formatted_time ,obdFrame.identifier,can_tx_queue());
+      str_hex_arr8(); //конвертация в HEX из send_content[]
+      Serial.printf("%s --Frame sent: %03X tx_queue: %d %s\r\n",
+                formatted_time ,obdFrame.identifier,can_tx_queue(),str_hex);
     } else {
       Serial.printf("%s tx_queue: %d\r\n",formatted_time,can_tx_queue());
     }
@@ -117,7 +119,7 @@ void sendObdFrame(uint8_t obdId) {
 
 //Распечатка содержимого принятого пакета CAN
 void handle_rx_message(twai_message_t& message) {
-
+  Serial.print(formatted_time+" --Frame received: ");
   if (message.extd) {
     Serial.print("CAX: 0x");
   } else {
