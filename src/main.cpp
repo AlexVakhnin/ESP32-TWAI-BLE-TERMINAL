@@ -16,15 +16,16 @@ extern void t_1s_job();
 extern void disp_setup();
 extern void disp_show();
 extern void ble_setup();
-extern void str_hex_arr8 ();
-//extern void ble_handle_tx();
+extern String hex_arr8(uint8_t arr[]);
+extern void ble_handle_tx(String str);
 
 void sendObdFrame();
 void handle_rx_message(twai_message_t& message);
 
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
-bool flag_cycle = false;
+bool flag_cycle = false;    //в цикле посылать obd2 запрос
+bool flag_ble_term = false;  //дублировать на BLE терминал obd2 пакет
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
 uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)
@@ -33,7 +34,6 @@ uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)
   5,      //PID OBD2
   0xAA,0xAA,0xAA,0xAA,0xAA  //Best to use 0xAA (0b10101010) instead of 0
 };
-char str_hex[24]; //буфер для перевода в HEX
 String formatted_time = "00:00:00"; // "hh:mm:ss"
 String ds1 = ""; //дисплей-строка 1
 String ds2 = ""; //дисплей-строка 2
@@ -49,7 +49,6 @@ void setup() {
   //internal led
   pinMode(8, OUTPUT);
   digitalWrite(8, HIGH); //OFF
-
 
   delay(10000);  //10 sec
 
@@ -96,6 +95,10 @@ unsigned long currentMillis = millis();
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   // Standard OBD2 frame responce ID=0x7E8
           Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
       }
+      if(flag_ble_term){ //дублировать на BLE терминал obd2 пакет
+        //Serial.println("to ble: "+hex_arr8(rxFrame.data));
+        ble_handle_tx(hex_arr8(rxFrame.data));
+      }
   }
 }
 
@@ -109,9 +112,8 @@ void sendObdFrame() {
 	        obdFrame.data[i] = send_content[i];  //формируем пакет obd2
     //передача пакета
     if(can_write(&obdFrame)){  // timeout defaults to 1 ms
-      str_hex_arr8(); //конвертация в HEX из send_content[]
       Serial.printf("%s --Frame sent: %03X tx_queue: %d %s\r\n",
-                formatted_time ,obdFrame.identifier,can_tx_queue(),str_hex);
+                formatted_time ,obdFrame.identifier,can_tx_queue(),hex_arr8(send_content).c_str());
     } else {
       Serial.printf("%s tx_queue: %d\r\n",formatted_time,can_tx_queue());
     }
@@ -132,9 +134,12 @@ void handle_rx_message(twai_message_t& message) {
   Serial.print(" [");
   Serial.print(message.data_length_code, DEC);
   Serial.print("] <");
+  
   for (int i = 0; i < message.data_length_code; i++) {
     if (i != 0) Serial.print(":");
     Serial.print(message.data[i], HEX);
   }
+  
+  //Serial.print("");
   Serial.println(">");
 }

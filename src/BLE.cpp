@@ -9,14 +9,18 @@ extern String ds1;
 extern String ds2;
 extern String dev_name;
 extern bool flag_cycle;
+extern bool flag_ble_term;
 extern uint8_t send_content[];
-extern char str_hex[24];
+
+extern uint32_t can_tx_queue();
+extern void sendObdFrame();
 
 void storage_dev_name(String dname);
 void storage_send_content();
 void help_print();
 void reset_nvram();
-void str_hex_arr8();
+String hex_arr8(uint8_t arr[]);
+void elm327_01_05_handle();
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
@@ -31,8 +35,7 @@ Preferences preferences; //for NVRAM
 #define SERVICE_UUID        "f0717496-ab77-4ebc-9705-eff9b74e5c39"
 #define CHARACTERISTIC_UUID "916cc1fc-7111-48e7-a511-80b76a4df530"
 
-//Declaration
-void ble_handle_tx(String str );
+void ble_handle_tx(String str);
 
 //ловим события connect/disconnect от BLE сервера
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -86,47 +89,46 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                 reset_nvram();
             }            
             else if (pstr=="ati"||pstr=="ati\r\n") { //ati - information
-                str_hex_arr8(); //конвертация в HEX из send_content[]
-              String s ="name="+dev_name
-                  +"\r\nsend_cont="+String(str_hex)
-                  //+"\r\nstatus="+dispstatus
-                  +"\r\nflag_cycle="+String(flag_cycle);
+                //str_hex_arr8(); //конвертация в HEX из send_content[]
+              String s ="device_name: "+dev_name
+                  +"\r\n--------------state---------------"
+                  +"\r\nobd2_recv="+hex_arr8(send_content)
+                  +"\r\nflag_cycle="+String(flag_cycle)
+                  +"\r\nflag_ble_term="+String(flag_ble_term)
+                  +"\r\n----------------------------------"
+                  +"\r\nat+m - save current state";
                 ble_handle_tx(s); //send string to BLE client
             }
-            else if (pstr=="atc0"||pstr=="atc0\r\n") { //cycle = on
+            else if (pstr=="atc=0"||pstr=="atc=0\r\n") { //flag_cycle = off
                 flag_cycle = false;
                 ble_handle_tx("cycle=off");
             }            
-            else if (pstr=="atc1"||pstr=="atc1\r\n") { //cycle = off
+            else if (pstr=="atc=1"||pstr=="atc=1\r\n") { //flag_cycle = on
                 flag_cycle = true;
                 ble_handle_tx("cycle=on");
             }            
-            else if (pstr=="ats"||pstr=="ats\r\n") { //storage send_content
+            else if (pstr=="atb=0"||pstr=="atb=0\r\n") { //flag_ble_term = off
+                flag_ble_term = false;
+                ble_handle_tx("ble_term=off");
+            }            
+            else if (pstr=="atb=1"||pstr=="atb=1\r\n") { //flag_ble_term = on
+                flag_ble_term = true;
+                ble_handle_tx("ble_term=on");
+            }            
+            else if (pstr=="at+m"||pstr=="at+m\r\n") { //storage send_content
                 storage_send_content();
+            }            
+            else if (pstr=="01 05"||pstr=="01 05\r\n") { //elm327 imitation
+                elm327_01_05_handle();
             }            
             
             else if (pstr.substring(0,4)=="atn=") { //atn= - dev_name save NVRAM
                 storage_dev_name(pstr.substring(4)); //dev_name
             }
             
-            else {ble_handle_tx("???");}
-            
+            else {ble_handle_tx("???");}            
         }
     }
-
-    //FOR DEBUG
-    /*
-    void onRead(BLECharacteristic* pCharacteristic, esp_ble_gatts_cb_param_t* param) { //Read
-        Serial.println("Event-Read..");
-    }
-    void onNotify(BLECharacteristic* pCharacteristic) { //Notify
-        Serial.println("Event-Notify..");
-    }
-    void onStatus(BLECharacteristic* pCharacteristic, Status s, uint32_t code) { //Status
-        Serial.println("Event-Status..");
-    }
-    */
-   
  };
 
 //Init BLE Service
@@ -134,8 +136,9 @@ void ble_setup(){
 
   //читаем все параметры NVRAM
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
-  //factor = preferences.getDouble("att_factor", 5.00);
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
+  flag_ble_term = preferences.getBool("flag_ble_term", false);
+  flag_cycle = preferences.getBool("flag_cycle", false);
   int len = preferences.getBytes("send_content", send_content, 8);
   Serial.println("send_content Len = "+String(len));
   preferences.end(); //закрываем NVRAM
@@ -183,7 +186,7 @@ void ble_setup(){
   Serial.println("BLE Device name: "+ dev_name);
 }
 
-//ответ клиенту
+//ответ клиенту BLE , параметр - String
 void ble_handle_tx(String str){
 
     if (deviceConnected) { //проверка, что подключен клиент BLE
@@ -199,11 +202,13 @@ void ble_handle_tx(String str){
     }
 
 }
-void storage_send_content(){
+void storage_send_content(){ //команда at+m
     preferences.begin("hiveMon", false);
     preferences.putBytes("send_content", send_content, 8);
+    preferences.putBool("flag_cycle", flag_cycle);
+    preferences.putBool("flag_ble_term", flag_ble_term);
     preferences.end();
-    ble_handle_tx("send_content saved..");   
+    ble_handle_tx("current content saved..");   
 }
 void storage_dev_name(String dname){
   //Нужно удалить \r\n в конце строки..
@@ -218,11 +223,12 @@ void storage_dev_name(String dname){
 }
 
 void help_print(){
-  String  shelp="ati - parameter list";
+  String  shelp="ati - list current state";
         shelp+="\r\natn=[name] - BLE device name";
-        shelp+="\r\natc0 - cycle off";
-        shelp+="\r\natc1 - cycle on";
-        shelp+="\r\nats - save last send_content";
+        shelp+="\r\natc=1/0 - cycle on/off";
+        shelp+="\r\natb=1/0 - show odb2 packets on/off";
+        shelp+="\r\nat+m - save current state";
+        shelp+="\r\natz - set to default";
   ble_handle_tx(shelp);
 }
 void reset_nvram(){
@@ -233,8 +239,25 @@ void reset_nvram(){
   delay(3000);
   ESP.restart();
 }
-void str_hex_arr8 (){
-      sprintf( str_hex , "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
-      send_content[0], send_content[1], send_content[2], send_content[3],
-      send_content[4], send_content[5], send_content[6], send_content[7] );
+void elm327_01_05_handle(){
+    flag_cycle = false; //остановить циклический запрос obd2 
+    flag_ble_term = true; //принимаемые пакеты печатать на BLE
+    if(can_tx_queue()<3){
+        for(int i=0;i<8;i++) send_content[i] = 0xAA;
+        send_content[0]=2;
+        send_content[1]=1;
+        send_content[2]=5;
+        sendObdFrame(); // Передача запроса по CAN шине.(obd2 pid=5)
+    } else {
+        ble_handle_tx("CAN BUS DOWN..");
+    }
+
+
+}
+//преобразовать массив 8 байт в HEX строку: xx:xx:xx:xx:xx:xx:xx:xx
+String hex_arr8(uint8_t arr[]){
+    char buf[24]; //буфер для перевода в HEX
+    sprintf( buf , "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+      arr[0], arr[1], arr[2], arr[3], arr[4], arr[5], arr[6], arr[7] );
+    return buf;
 }
