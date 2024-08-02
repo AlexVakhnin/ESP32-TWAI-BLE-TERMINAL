@@ -21,13 +21,13 @@ extern String hex_elm_arr8(uint8_t arr[]);
 extern void ble_handle_tx(String str);
 
 void sendObdFrame();
-void handle_rx_message(twai_message_t& message);
+//void handle_rx_message(twai_message_t& message);
 String str_obd2_ext(twai_message_t& message);
 
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
 bool flag_cycle = false;    //в цикле посылать obd2 запрос
-bool flag_ble_term = true;  //выдавать на BLE терминал obd2 пакет
+//bool flag_ble_term = true;  //выдавать на BLE терминал obd2 пакет
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
@@ -93,24 +93,23 @@ unsigned long currentMillis = millis();
 
   // Принимаем пакеты CAN..
   if(can_read(&rxFrame)) {
-    if(flag_ble_term){    //печать на BLE
+    //if(flag_ble_term){    //печать на BLE
       if(!flag_ext_format) ble_handle_tx(hex_elm_arr8(rxFrame.data)+"\r\n");
       else ble_handle_tx(str_obd2_ext(rxFrame)+"\r\n");
       //ble_handle_tx(str_obd2_ext(rxFrame)+"\r\n");
-    } else {              //печать в Serial
-      //handle_rx_message(rxFrame);
-      Serial.println(formatted_time+" --Frame received: "+str_obd2_ext(rxFrame));
-      //расшифровка температуры двмгателя
+    //} else {              //печать в Serial
+      //Serial.println(formatted_time+" --Frame received: "+str_obd2_ext(rxFrame));
+      //расшифровка температуры двигателя
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   // Standard OBD2 frame responce ID=0x7E8
           Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
       }
-    }
+    //}
   }
 
 
 }
 
-//Посылаем запрос по шине CAN для Service=1 (параметр=PID)
+//Посылаем запрос по шине CAN
 void sendObdFrame() {
 	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями !!!
 	obdFrame.identifier = 0x7DF; // Общий адрес всех ECU;
@@ -120,7 +119,7 @@ void sendObdFrame() {
 	        obdFrame.data[i] = send_content[i];  //формируем пакет obd2
     //передача пакета
     if(can_write(&obdFrame)){  // timeout defaults to 1 ms
-      if (!flag_ble_term)
+    //  if (!flag_ble_term)
         Serial.printf("%s --Frame sent: %03X tx_queue: %d %s\r\n",
                 formatted_time ,obdFrame.identifier,can_tx_queue(),hex_arr8(send_content).c_str());
     } else {
@@ -128,30 +127,7 @@ void sendObdFrame() {
     }
 }
 
-//Распечатка содержимого принятого пакета CAN
-void handle_rx_message(twai_message_t& message) {
-  Serial.print(formatted_time+" --Frame received: ");
-  if (message.extd) {
-    Serial.print("CAX: 0x");
-  } else {
-    Serial.print("CAN: 0x");
-  }
-  Serial.print(message.identifier, HEX);
-  //Serial.print(" (");
-  Serial.print(" rx_queue: "+String(can_rx_queue()));
-  //Serial.print(")");
-  Serial.print(" [");
-  Serial.print(message.data_length_code, DEC);
-  Serial.print("] <");
-  
-  for (int i = 0; i < message.data_length_code; i++) {
-    if (i != 0) Serial.print(":");
-    Serial.print(message.data[i], HEX);
-  }
-  
-  //Serial.print("");
-  Serial.println(">");
-}
+//принятый пакет CAN в строку в расширенном формате
 String str_obd2_ext(twai_message_t& message){
   String rez = "";
   char buf[3];

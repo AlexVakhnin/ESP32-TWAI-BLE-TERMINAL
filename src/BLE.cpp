@@ -9,7 +9,7 @@ extern String ds1;
 extern String ds2;
 extern String dev_name;
 extern bool flag_cycle;
-extern bool flag_ble_term;
+//extern bool flag_ble_term;
 extern bool flag_ext_format;
 extern uint8_t send_content[];
 
@@ -96,7 +96,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                   +"\r\n--------------state---------------"
                   +"\r\nobd2_recv="+hex_arr8(send_content)
                   +"\r\nflag_cycle="+String(flag_cycle)
-                  +"\r\nflag_ble_term="+String(flag_ble_term)
+                  //+"\r\nflag_ble_term="+String(flag_ble_term)
                   +"\r\nflag_ext_format="+String(flag_ext_format)
                   +"\r\n----------------------------------"
                   +"\r\nat+m - save current state";
@@ -109,7 +109,8 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             else if (pstr=="atc=1"||pstr=="atc=1\r\n") { //flag_cycle = on
                 flag_cycle = true;
                 ble_handle_tx("cycle=on\r\n");
-            }            
+            }    
+            /*        
             else if (pstr=="atb=0"||pstr=="atb=0\r\n") { //flag_ble_term = off
                 flag_ble_term = false;
                 ble_handle_tx("ble_term=off\r\n");
@@ -117,7 +118,8 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             else if (pstr=="atb=1"||pstr=="atb=1\r\n") { //flag_ble_term = on
                 flag_ble_term = true;
                 ble_handle_tx("ble_term=on\r\n");
-            }            
+            } 
+            */           
             else if (pstr=="ate=0"||pstr=="ate=0\r\n") { //flag_ext_format = off
                 flag_ext_format = false;
                 ble_handle_tx("ext_format=off\r\n");
@@ -147,7 +149,7 @@ void ble_setup(){
   //читаем все параметры NVRAM
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
-  flag_ble_term = preferences.getBool("flag_ble_term", true);
+  //flag_ble_term = preferences.getBool("flag_ble_term", true);
   flag_cycle = preferences.getBool("flag_cycle", false);
   flag_ext_format = preferences.getBool("flag_ext_format", false);
   int len = preferences.getBytes("send_content", send_content, 8);
@@ -217,7 +219,7 @@ void storage_send_content(){ //команда at+m
     preferences.begin("hiveMon", false);
     preferences.putBytes("send_content", send_content, 8);
     preferences.putBool("flag_cycle", flag_cycle);
-    preferences.putBool("flag_ble_term", flag_ble_term);
+    //preferences.putBool("flag_ble_term", flag_ble_term);
     preferences.putBool("flag_ext_format", flag_ext_format);
     preferences.end();
     ble_handle_tx("current content saved..\r\n");   
@@ -238,7 +240,7 @@ void help_print(){
   String  shelp="ati - list current state";
         shelp+="\r\natn=[name] - BLE device name";
         shelp+="\r\natc=1/0 - cycle on/off";
-        shelp+="\r\natb=1/0 - show odb2 packets on/off";
+        //shelp+="\r\natb=1/0 - show odb2 packets on/off";
         shelp+="\r\nate=1/0 - ext format on/off";
         shelp+="\r\nat+m - save current state";
         shelp+="\r\natz - set to default";
@@ -255,7 +257,7 @@ void reset_nvram(){
 //посылаем пакет obd2 в стиле elm327
 void elm327_01_05_handle(){
     flag_cycle = false; //остановить циклический запрос obd2 
-    flag_ble_term = true; //принимаемые пакеты печатать на BLE
+    //flag_ble_term = true; //принимаемые пакеты печатать на BLE
     if(can_tx_queue()==0){
         for(int i=0;i<8;i++) send_content[i] = 0xAA;
         send_content[0]=2;
