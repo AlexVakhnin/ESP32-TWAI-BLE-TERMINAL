@@ -17,18 +17,18 @@ extern void disp_setup();
 extern void disp_show();
 extern void ble_setup();
 extern String hex_arr8(uint8_t arr[]);
-extern String hex_elm_arr8(uint8_t arr[]);
 extern void ble_handle_tx(String str);
 
 void sendObdFrame();
-//void handle_rx_message(twai_message_t& message);
 String str_obd2_ext(twai_message_t& message);
+String str_obd2_min(uint8_t arr[]);
 
 unsigned long previousMillis = 0;
-unsigned long interval = 5000;  //5 sec.
+unsigned long interval = 2000;  //3 sec.
 bool flag_cycle = false;    //в цикле посылать obd2 запрос
-//bool flag_ble_term = true;  //выдавать на BLE терминал obd2 пакет
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
+int collant = 0; //температура двигателя
+int can_counter = 0; //счетчик принятых CAN пакетов
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
 uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)
@@ -71,10 +71,9 @@ void setup() {
   Serial.println("----------------Start Info-----------------");
   Serial.printf("Total heap:\t%d \r\n", ESP.getHeapSize());
   Serial.printf("Free heap:\t%d \r\n", ESP.getFreeHeap());
- 
-//Serial.println("I2C_SDA= "+String(SDA));
-//Serial.println("I2C_SCL= "+String(SCL));
-Serial.println("-----------------------------------------");
+  //Serial.println("I2C_SDA= "+String(SDA));
+  //Serial.println("I2C_SCL= "+String(SCL));
+  Serial.println("-------------------------------------------");
  
 }
 
@@ -93,19 +92,14 @@ unsigned long currentMillis = millis();
 
   // Принимаем пакеты CAN..
   if(can_read(&rxFrame)) {
-    //if(flag_ble_term){    //печать на BLE
-      if(!flag_ext_format) ble_handle_tx(hex_elm_arr8(rxFrame.data)+"\r\n");
-      else ble_handle_tx(str_obd2_ext(rxFrame)+"\r\n");
-      //ble_handle_tx(str_obd2_ext(rxFrame)+"\r\n");
-    //} else {              //печать в Serial
-      //Serial.println(formatted_time+" --Frame received: "+str_obd2_ext(rxFrame));
-      //расшифровка температуры двигателя
-      if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   // Standard OBD2 frame responce ID=0x7E8
-          Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
-      }
-    //}
+      can_counter++;
+      if(!flag_ext_format) ble_handle_tx(str_obd2_min(rxFrame.data)+"\r\n"); //min format
+      else ble_handle_tx(str_obd2_ext(rxFrame)+"\r\n"); //ext format
+      if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
+            //Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
+            collant = rxFrame.data[3] - 40;
+      }     
   }
-
 
 }
 
@@ -119,11 +113,10 @@ void sendObdFrame() {
 	        obdFrame.data[i] = send_content[i];  //формируем пакет obd2
     //передача пакета
     if(can_write(&obdFrame)){  // timeout defaults to 1 ms
-    //  if (!flag_ble_term)
-        Serial.printf("%s --Frame sent: %03X tx_queue: %d %s\r\n",
-                formatted_time ,obdFrame.identifier,can_tx_queue(),hex_arr8(send_content).c_str());
+        //Serial.printf("%s --Frame sent: %03X tx_queue: %d %s\r\n",
+        //        formatted_time ,obdFrame.identifier,can_tx_queue(),hex_arr8(send_content).c_str());
     } else {
-      Serial.printf("%s tx_queue: %d\r\n",formatted_time,can_tx_queue());
+      Serial.printf("%s --Frame sent: ERROR.. tx_queue: %d\r\n",formatted_time,can_tx_queue());
     }
 }
 
@@ -142,4 +135,18 @@ String str_obd2_ext(twai_message_t& message){
     rez+=String(buf);
   } 
   return rez;
+}
+//принятый пакет CAN в строку в минимальном формате
+String str_obd2_min(uint8_t arr[]){
+    String rez = "";
+    int n= arr[0];  //количество значащих байт в пакете(3)
+    if(n>7) n=7; //фильтр по длине
+    for(int i=1;i<n+1;i++){ //[1,2,3]
+        char buf[4+3]; //буфер для перевода в HEX
+        if(i != n) sprintf( buf , "%.2X ", arr[i] ); //кроме последнего(3)
+        //else sprintf( buf , "%.2X \r\r>", arr[i] );  //последний c добавкой 0D:0D:3E
+        else sprintf( buf , "%.2X", arr[i] );  //последний , без пробела
+        rez+=String(buf);  //добавляем в результат
+    }
+    return rez;
 }

@@ -9,9 +9,10 @@ extern String ds1;
 extern String ds2;
 extern String dev_name;
 extern bool flag_cycle;
-//extern bool flag_ble_term;
+extern int collant;
 extern bool flag_ext_format;
 extern uint8_t send_content[];
+extern int can_counter;
 
 extern uint32_t can_tx_queue();
 extern void sendObdFrame();
@@ -21,7 +22,6 @@ void storage_send_content();
 void help_print();
 void reset_nvram();
 String hex_arr8(uint8_t arr[]);
-String hex_elm_arr8(uint8_t arr[]);
 void elm327_01_05_handle();
 
 BLEServer* pServer = NULL;
@@ -92,11 +92,12 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }            
             else if (pstr=="ati"||pstr=="ati\r\n") { //ati - information
                 //str_hex_arr8(); //конвертация в HEX из send_content[]
-              String s ="device_name: "+dev_name
+              String s ="DeviceName: "+dev_name
+                  +"\r\nFreeMem: "+String(ESP.getFreeHeap())
+                  +"\r\nCollant: "+String(collant)
                   +"\r\n--------------state---------------"
                   +"\r\nobd2_recv="+hex_arr8(send_content)
                   +"\r\nflag_cycle="+String(flag_cycle)
-                  //+"\r\nflag_ble_term="+String(flag_ble_term)
                   +"\r\nflag_ext_format="+String(flag_ext_format)
                   +"\r\n----------------------------------"
                   +"\r\nat+m - save current state";
@@ -108,18 +109,9 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }            
             else if (pstr=="atc=1"||pstr=="atc=1\r\n") { //flag_cycle = on
                 flag_cycle = true;
+                can_counter = 0;
                 ble_handle_tx("cycle=on\r\n");
             }    
-            /*        
-            else if (pstr=="atb=0"||pstr=="atb=0\r\n") { //flag_ble_term = off
-                flag_ble_term = false;
-                ble_handle_tx("ble_term=off\r\n");
-            }            
-            else if (pstr=="atb=1"||pstr=="atb=1\r\n") { //flag_ble_term = on
-                flag_ble_term = true;
-                ble_handle_tx("ble_term=on\r\n");
-            } 
-            */           
             else if (pstr=="ate=0"||pstr=="ate=0\r\n") { //flag_ext_format = off
                 flag_ext_format = false;
                 ble_handle_tx("ext_format=off\r\n");
@@ -210,8 +202,8 @@ void ble_handle_tx(String str){
         pCharacteristic->setValue(str.c_str());
         //pCharacteristic->indicate();//для работы с BLE терминалом !!!!!!!
         pCharacteristic->notify(false); //false=indicate; true=wait confirmation
-
-        Serial.print("--BLE: send: "+str);
+        //For Debug..
+        Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str);
     }
 
 }
@@ -269,21 +261,6 @@ void elm327_01_05_handle(){
     }
 
 
-}
-//преобразовать пакет obd2 в HEX строку: xx xx xx..
-//в стиле ELM327
-String hex_elm_arr8(uint8_t arr[]){
-    String rez = "";
-    int n= arr[0];  //количество значащих байт в пакете(3)
-    if(n>7) n=7; //фильтр по длине
-    for(int i=1;i<n+1;i++){ //[1,2,3]
-        char buf[4+3]; //буфер для перевода в HEX
-        if(i != n) sprintf( buf , "%.2X ", arr[i] ); //кроме последнего(3)
-        //else sprintf( buf , "%.2X \r\r>", arr[i] );  //последний c добавкой 0D:0D:3E
-        else sprintf( buf , "%.2X", arr[i] );  //последний , без пробела
-        rez+=String(buf);  //добавляем в результат
-    }
-    return rez;
 }
 //преобразовать массив 8 байт в HEX строку: xx:xx:xx:xx:xx:xx:xx:xx
 String hex_arr8(uint8_t arr[]){
