@@ -100,8 +100,8 @@ unsigned long currentMillis = millis();
       if(!flag_ext_format) ble_handle_tx(str_min); //to BLE min format
       else ble_handle_tx(str_ext); //to BLE ext format
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
-            //Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
             collant = rxFrame.data[3] - 40;
+            Serial.printf("Collant temp: %3d°C \r\n", collant); // Convert to °C
       }     
   }
 
