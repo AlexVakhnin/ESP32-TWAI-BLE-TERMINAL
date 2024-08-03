@@ -22,7 +22,7 @@ void storage_send_content();
 void help_print();
 void reset_nvram();
 String hex_arr8(uint8_t arr[]);
-void elm327_01_05_handle();
+void obd2_01_05_handle();
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
@@ -58,7 +58,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
       //}
       Serial.print("Event-Connect..");Serial.println(remoteAddress);
       deviceConnected = true;
-      digitalWrite(8, LOW); //led = ON (DEBUG..)
+      digitalWrite(8, LOW); //internal led = ON (DEBUG..)
     };
 
     void onDisconnect(BLEServer* pServer) {
@@ -66,11 +66,11 @@ class MyServerCallbacks: public BLEServerCallbacks {
       Serial.println("Event-Disconnect..");
       delay(300); // give the bluetooth stack the chance to get things ready
       BLEDevice::startAdvertising();  // restart advertising
-      digitalWrite(8, HIGH); //led = OFF (DEBUG..)
+      digitalWrite(8, HIGH); //internal led = OFF (DEBUG..)
     }
 };
 
-//ловим события от BLE сервиса read/write
+//ловим события write от BLE сервиса
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic* pCharacteristic, esp_ble_gatts_cb_param_t* param) { //запись в сервис..
         std::string rxValue = pCharacteristic->getValue(); //строка от BLE
@@ -124,7 +124,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                 storage_send_content();
             }            
             else if (pstr=="01 05"||pstr=="01 05\r\n") { //elm327 imitation
-                elm327_01_05_handle();
+                obd2_01_05_handle();
             }                        
             else if (pstr.substring(0,4)=="atn=") { //atn= - dev_name save NVRAM
                 storage_dev_name(pstr.substring(4)); //dev_name
@@ -141,7 +141,6 @@ void ble_setup(){
   //читаем все параметры NVRAM
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
-  //flag_ble_term = preferences.getBool("flag_ble_term", true);
   flag_cycle = preferences.getBool("flag_cycle", false);
   flag_ext_format = preferences.getBool("flag_ext_format", false);
   int len = preferences.getBytes("send_content", send_content, 8);
@@ -191,35 +190,27 @@ void ble_setup(){
   Serial.println("BLE Device name: "+ dev_name);
 }
 
-//ответ клиенту BLE , параметр - String
+//отправляем строку клиенту BLE на терминал.. 
 void ble_handle_tx(String str){
-
     if (deviceConnected) { //проверка, что подключен клиент BLE
         if(str.length()==0) str="none..\r\n";
-
-        //str = str+"\r\n";
-        //Serial.println("str="+str);
         pCharacteristic->setValue(str.c_str());
-        //pCharacteristic->indicate();//для работы с BLE терминалом !!!!!!!
         pCharacteristic->notify(false); //false=indicate; true=wait confirmation
-        //For Debug..
-        Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str);
     }
-
 }
-void storage_send_content(){ //команда at+m
+//команда at+m - сохранить тек. параметры obd2 в NVRAM
+void storage_send_content(){ 
     preferences.begin("hiveMon", false);
     preferences.putBytes("send_content", send_content, 8);
     preferences.putBool("flag_cycle", flag_cycle);
-    //preferences.putBool("flag_ble_term", flag_ble_term);
     preferences.putBool("flag_ext_format", flag_ext_format);
     preferences.end();
     ble_handle_tx("current content saved..\r\n");   
 }
-void storage_dev_name(String dname){
-  //Нужно удалить \r\n в конце строки..
+//сохранить имя BLE устройства в NVRAM
+void storage_dev_name(String dname){ 
   int n = dname.length(); 
-  dev_name = dname.substring(0,n-2);
+  dev_name = dname.substring(0,n-2); //удалить \r\n в конце строки..
   ble_handle_tx("new dev_name="+dev_name+"\r\n"); //ответ на BLE
   preferences.begin("hiveMon", false);
   preferences.putString("dev_name", dev_name);
@@ -227,17 +218,17 @@ void storage_dev_name(String dname){
   delay(3000);
   ESP.restart();
 }
-
+//команда at?
 void help_print(){
   String  shelp="ati - list current state";
         shelp+="\r\natn=[name] - BLE device name";
         shelp+="\r\natc=1/0 - cycle on/off";
-        //shelp+="\r\natb=1/0 - show odb2 packets on/off";
         shelp+="\r\nate=1/0 - ext format on/off";
         shelp+="\r\nat+m - save current state";
         shelp+="\r\natz - set to default";
   ble_handle_tx(shelp+"\r\n");
 }
+//команда atz - очистить NVRAM
 void reset_nvram(){
   preferences.begin("hiveMon", false); //пространство имен (чтение-запись)
   preferences.clear(); //удаляем все ключи в пространстве имен
@@ -246,10 +237,9 @@ void reset_nvram(){
   delay(3000);
   ESP.restart();
 }
-//посылаем пакет obd2 в стиле elm327
-void elm327_01_05_handle(){
+//команда "01 05" - запрос температуры ОЖ в obd2
+void obd2_01_05_handle(){
     flag_cycle = false; //остановить циклический запрос obd2 
-    //flag_ble_term = true; //принимаемые пакеты печатать на BLE
     if(can_tx_queue()==0){
         for(int i=0;i<8;i++) send_content[i] = 0xAA;
         send_content[0]=2;
@@ -259,8 +249,6 @@ void elm327_01_05_handle(){
     } else {
         ble_handle_tx("CAN BUS DOWN..\r\n");
     }
-
-
 }
 //преобразовать массив 8 байт в HEX строку: xx:xx:xx:xx:xx:xx:xx:xx
 String hex_arr8(uint8_t arr[]){

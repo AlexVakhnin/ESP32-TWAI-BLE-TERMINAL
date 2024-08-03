@@ -24,7 +24,7 @@ String str_obd2_ext(twai_message_t& message);
 String str_obd2_min(uint8_t arr[]);
 
 unsigned long previousMillis = 0;
-unsigned long interval = 2000;  //3 sec.
+unsigned long interval = 2000;  //интервал цикла запросов obd2
 bool flag_cycle = false;    //в цикле посылать obd2 запрос
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
 int collant = 0; //температура двигателя
@@ -93,8 +93,12 @@ unsigned long currentMillis = millis();
   // Принимаем пакеты CAN..
   if(can_read(&rxFrame)) {
       can_counter++;
-      if(!flag_ext_format) ble_handle_tx(str_obd2_min(rxFrame.data)+"\r\n"); //min format
-      else ble_handle_tx(str_obd2_ext(rxFrame)+"\r\n"); //ext format
+      String str_min = str_obd2_min(rxFrame.data)+"\r\n"; //min format
+      String str_ext = str_obd2_ext(rxFrame)+"\r\n"; //ext format
+      Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
+
+      if(!flag_ext_format) ble_handle_tx(str_min); //to BLE min format
+      else ble_handle_tx(str_ext); //to BLE ext format
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
             //Serial.printf("Collant temp: %3d°C \r\n", rxFrame.data[3] - 40); // Convert to °C
             collant = rxFrame.data[3] - 40;
@@ -103,8 +107,9 @@ unsigned long currentMillis = millis();
 
 }
 
-//Посылаем запрос по шине CAN
+//Посылаем запрос obd2 по шине CAN, пакет берем из send_content[]
 void sendObdFrame() {
+  twai_clear_receive_queue();  //обнуляем очередь на прием пакетов CAN
 	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями !!!
 	obdFrame.identifier = 0x7DF; // Общий адрес всех ECU;
 	obdFrame.extd = 0; //формат 11-бит

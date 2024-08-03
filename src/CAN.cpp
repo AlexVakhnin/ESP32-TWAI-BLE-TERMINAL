@@ -5,8 +5,10 @@ int8_t tx = 5;  //pin для tx
 int8_t rx = 4;  //pin для rx
 uint16_t txQueueSize = 10; //очередь tx
 uint16_t rxQueueSize = 20;  //очередь rx
-twai_status_info_t status;
+twai_status_info_t status;  //структура для получения состояния CAN
 
+
+//инициализация контроллера CAN шины
 bool can_init(){
     bool rez=false;
 
@@ -35,6 +37,7 @@ bool can_init(){
     return rez;
 }
 
+//передача пакета по CAN шине
 bool can_write(twai_message_t* frame){
     bool rez = false;
     if((frame) && twai_transmit(frame, pdMS_TO_TICKS(1)) == ESP_OK) {
@@ -43,6 +46,7 @@ bool can_write(twai_message_t* frame){
     return rez;
 }
 
+//прием пакета по CAN шине
 bool can_read(twai_message_t* frame){
     bool rez = false;
     if((frame) && twai_receive(frame, pdMS_TO_TICKS(1000)) == ESP_OK) {
@@ -50,10 +54,12 @@ bool can_read(twai_message_t* frame){
     }
     return rez;
 }
-
+//заполнение структуры status
 bool getStatusInfo() {
     return ESP_OK == twai_get_status_info(&status);
 }
+
+//состояние очереди CAN на передачу
 uint32_t can_tx_queue() {
     uint32_t ret = 0;
     if(getStatusInfo()) {
@@ -62,6 +68,7 @@ uint32_t can_tx_queue() {
     return ret;
 };
 
+//состояние очереди CAN на прием
 uint32_t can_rx_queue() {
     uint32_t ret = 0;
     if(getStatusInfo()) {
