@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <Ticker.h>
 #include "driver/twai.h"
 
 // Default for ESP32 CAN
@@ -12,9 +11,8 @@ extern bool can_read(twai_message_t* frame);
 extern uint32_t can_tx_queue();
 extern uint32_t can_rx_queue();
 
-extern void t_1s_job();
-extern void disp_setup();
-extern void disp_show();
+//extern void disp_setup();
+//extern void disp_show();
 extern void ble_setup();
 extern String hex_arr8(uint8_t arr[]);
 extern void ble_handle_tx(String str);
@@ -37,11 +35,9 @@ uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)
   5,      //PID OBD2
   0xAA,0xAA,0xAA,0xAA,0xAA  //Best to use 0xAA (0b10101010) instead of 0
 };
-String formatted_time = "00:00:00"; // "hh:mm:ss"
-String ds1 = ""; //дисплей-строка 1
-String ds2 = ""; //дисплей-строка 2
+//String ds1 = ""; //дисплей-строка 1
+//String ds2 = ""; //дисплей-строка 2
 
-Ticker hTicker;  //Для UpTime
 twai_message_t rxFrame; //CanFrame = twai_message_t (для приема фреймов)
 
 
@@ -62,11 +58,8 @@ void setup() {
         Serial.println("CAN bus failed!");
     }
 
-  disp_setup(); //OLED SSD1306 63X32
+  //disp_setup(); //OLED SSD1306 63X32
   ble_setup(); //start BLE server
-
-  //инициализация прерывания 1 sec. (дисплей..)
-  hTicker.attach_ms(1000, t_1s_job); 
 
   Serial.println("----------------Start Info-----------------");
   Serial.printf("Total heap:\t%d \r\n", ESP.getHeapSize());
@@ -121,7 +114,7 @@ void sendObdFrame() {
         //Serial.printf("%s --Frame sent: %03X tx_queue: %d %s\r\n",
         //        formatted_time ,obdFrame.identifier,can_tx_queue(),hex_arr8(send_content).c_str());
     } else {
-      Serial.printf("%s --Frame sent: ERROR.. tx_queue: %d\r\n",formatted_time,can_tx_queue());
+      Serial.printf("--Frame sent: ERROR.. tx_queue: %d\r\n",can_tx_queue());
     }
 }
 
