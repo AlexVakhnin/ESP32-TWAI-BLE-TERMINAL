@@ -18,7 +18,12 @@ bool can_init(){
                                         .alerts_enabled = TWAI_ALERT_NONE,  .clkout_divider = 0,        \
                                         .intr_flags = ESP_INTR_FLAG_LEVEL1};
     twai_timing_config_t  t_config = TWAI_TIMING_CONFIG_500KBITS();  //500 kb/s
+
+    //аппаратный фильтр пакетов
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    f_config.acceptance_code = (0x7E8 << 21); //for single filter, 11bit !
+    f_config.acceptance_mask = ~(0x7FF << 21); //for single filter, 11bit !
+    //f_config.single_filter = true;
 
     //Install TWAI driver
     if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {

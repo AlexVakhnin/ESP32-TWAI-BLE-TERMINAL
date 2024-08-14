@@ -22,7 +22,7 @@ String str_obd2_ext(twai_message_t& message);
 String str_obd2_min(uint8_t arr[]);
 
 unsigned long previousMillis = 0;
-unsigned long interval = 2000;  //интервал цикла запросов obd2
+unsigned long interval = 1500;  //интервал цикла запросов obd2
 bool flag_cycle = false;    //в цикле посылать obd2 запрос
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
 int collant = 0; //температура двигателя
@@ -85,17 +85,22 @@ unsigned long currentMillis = millis();
 
   // Принимаем пакеты CAN..
   if(can_read(&rxFrame)) {
-      can_counter++;
-      String str_min = str_obd2_min(rxFrame.data)+"\r\n"; //min format
-      String str_ext = str_obd2_ext(rxFrame)+"\r\n"; //ext format
-      Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
+    can_counter++;
+    String str_min = str_obd2_min(rxFrame.data)+"\r\n"; //min format
+    String str_ext = str_obd2_ext(rxFrame)+"\r\n"; //ext format
+    Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
+    
+    if (flag_cycle){  //одна постоянная команда в своем цикле
+      if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
+          collant = rxFrame.data[3] - 40;  //расчет
+          if(!flag_ext_format) ble_handle_tx(String(collant)+"°C\r\n");
+          else ble_handle_tx(str_ext); //to BLE ext format
+      }
+    } else { //сниффер и обработка команд BLE
 
       if(!flag_ext_format) ble_handle_tx(str_min); //to BLE min format
       else ble_handle_tx(str_ext); //to BLE ext format
-      if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
-            collant = rxFrame.data[3] - 40;
-            Serial.printf("Collant temp: %3d°C \r\n", collant); // Convert to °C
-      }     
+    }
   }
 
 }
