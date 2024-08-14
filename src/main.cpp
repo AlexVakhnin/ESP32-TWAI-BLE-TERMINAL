@@ -27,6 +27,7 @@ bool flag_cycle = false;    //в цикле посылать obd2 запрос
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
 int collant = 0; //температура двигателя
 int can_counter = 0; //счетчик принятых CAN пакетов
+int filter = 0x7E8; //аппаратный фильтр(0x7E8),  0 - ACCEPT_ALL
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
 uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)
@@ -51,15 +52,14 @@ void setup() {
 
   delay(10000);  //10 sec
 
+  ble_setup(); //start BLE server + load from NVRAM
+
     //Старт CAN без параметров
     if(can_init()) {
         Serial.println("CAN bus started!");
     } else {
         Serial.println("CAN bus failed!");
     }
-
-  //disp_setup(); //OLED SSD1306 63X32
-  ble_setup(); //start BLE server
 
   Serial.println("----------------Start Info-----------------");
   Serial.printf("Total heap:\t%d \r\n", ESP.getHeapSize());
@@ -89,7 +89,7 @@ unsigned long currentMillis = millis();
     String str_min = str_obd2_min(rxFrame.data)+"\r\n"; //min format
     String str_ext = str_obd2_ext(rxFrame)+"\r\n"; //ext format
     Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
-    
+
     if (flag_cycle){  //одна постоянная команда в своем цикле
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
           collant = rxFrame.data[3] - 40;  //расчет
@@ -152,4 +152,8 @@ String str_obd2_min(uint8_t arr[]){
         rez+=String(buf);  //добавляем в результат
     }
     return rez;
+}
+int StrToHex(char str[])
+{
+  return (int) strtol(str, 0, 16);
 }

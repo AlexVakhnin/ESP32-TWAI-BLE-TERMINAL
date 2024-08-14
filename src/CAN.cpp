@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include "driver/twai.h"
 
+extern int filter;
+
 int8_t tx = 5;  //pin для tx
 int8_t rx = 4;  //pin для rx
 uint16_t txQueueSize = 10; //очередь tx
@@ -21,9 +23,10 @@ bool can_init(){
 
     //аппаратный фильтр пакетов
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-    f_config.acceptance_code = (0x7E8 << 21); //for single filter, 11bit !
-    f_config.acceptance_mask = ~(0x7FF << 21); //for single filter, 11bit !
-    //f_config.single_filter = true;
+    if (filter!=0){
+        f_config.acceptance_code = (filter << 21); //for single filter, 11bit !
+        f_config.acceptance_mask = ~(0x7FF << 21); //for single filter, 11bit !
+    }
 
     //Install TWAI driver
     if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {

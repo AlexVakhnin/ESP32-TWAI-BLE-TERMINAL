@@ -5,19 +5,21 @@
 #include <BLE2902.h>
 #include <Preferences.h>
 
-extern String ds1;
-extern String ds2;
+//extern String ds1;
+//extern String ds2;
 extern String dev_name;
 extern bool flag_cycle;
 extern int collant;
 extern bool flag_ext_format;
 extern uint8_t send_content[];
 extern int can_counter;
+extern int filter;
 
 extern uint32_t can_tx_queue();
 extern void sendObdFrame();
 
 void storage_dev_name(String dname);
+void storage_filter(String sfilter);
 void storage_send_content();
 void help_print();
 void reset_nvram();
@@ -93,6 +95,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             else if (pstr=="ati"||pstr=="ati\r\n") { //ati - information
                 //str_hex_arr8(); //конвертация в HEX из send_content[]
               String s ="DeviceName: "+dev_name
+                  +"\r\nFilter: 0x"+String(filter,HEX)+" (0x7e8)"
                   +"\r\nFreeMem: "+String(ESP.getFreeHeap())
                   +"\r\nCollant: "+String(collant)
                   +"\r\n--------------state---------------"
@@ -129,6 +132,9 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             else if (pstr.substring(0,4)=="atn=") { //atn= - dev_name save NVRAM
                 storage_dev_name(pstr.substring(4)); //dev_name
             }
+            else if (pstr.substring(0,4)=="atf=") { //atf= - can filter save NVRAM
+                storage_filter(pstr.substring(4)); //filter
+            }
             
             else {ble_handle_tx("???\r\n");}            
         }
@@ -141,6 +147,7 @@ void ble_setup(){
   //читаем все параметры NVRAM
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
+  filter = preferences.getInt("filter", 0x7E8);
   flag_cycle = preferences.getBool("flag_cycle", false);
   flag_ext_format = preferences.getBool("flag_ext_format", false);
   int len = preferences.getBytes("send_content", send_content, 8);
@@ -218,6 +225,23 @@ void storage_dev_name(String dname){
   delay(3000);
   ESP.restart();
 }
+
+//сохранить фильтр в NVRAM
+void storage_filter(String sfilter){ 
+  int n = sfilter.length(); 
+  String fstr = sfilter.substring(2,n-2); //удалить 0x в начале и \r\n в конце строки..
+  int number = (int) strtol( &fstr[0], NULL, 16);
+  if (number>=0 && number<=0x7FF && sfilter[0]==0x30 && sfilter[1]==0x78) { //test
+    ble_handle_tx("new filter= 0x"+String(number,HEX)+"\r\n"); //ответ на BLE
+    filter = number;
+    preferences.begin("hiveMon", false);
+    preferences.putInt("filter", filter);
+    preferences.end();
+    delay(3000);
+    ESP.restart();
+  } else ble_handle_tx("ERROR NUMBER..\r\n");
+}
+
 //команда at?
 void help_print(){
   String  shelp="ati - list current state";
