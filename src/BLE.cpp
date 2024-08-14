@@ -246,7 +246,8 @@ void storage_filter(String sfilter){
 void help_print(){
   String  shelp="ati - list current state";
         shelp+="\r\natn=[name] - BLE device name";
-        shelp+="\r\natc=1/0 - cycle on/off";
+        shelp+="\r\natf=[filter] - hardware CAN filter";
+        shelp+="\r\natc=1/0 - CAN send cycle on/off";
         shelp+="\r\nate=1/0 - ext format on/off";
         shelp+="\r\nat+m - save current state";
         shelp+="\r\natz - set to default";

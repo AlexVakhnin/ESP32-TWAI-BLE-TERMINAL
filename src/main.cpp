@@ -27,6 +27,8 @@ bool flag_cycle = false;    //в цикле посылать obd2 запрос
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
 int collant = 0; //температура двигателя
 int can_counter = 0; //счетчик принятых CAN пакетов
+int sent_counter = 0; //счетчик при передаче CAN пакетов
+//bool flag_cycle_err = false; //нет ответа CAN в цикле
 int filter = 0x7E8; //аппаратный фильтр(0x7E8),  0 - ACCEPT_ALL
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
@@ -72,26 +74,29 @@ void setup() {
 
 void loop() {
 
-//Передаем пакеты CAN..
+//Циклическая передача пакетов CAN..
 unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >=interval && flag_cycle) {
+    sent_counter++; //считаем переданные пакеты "01 05"
+    if(sent_counter>2){ble_handle_tx("CYCLE ERROR..\r\n");} //DEBUG
     if(can_tx_queue()<3){
-      sendObdFrame(); // Передача запроса по CAN шине.(obd2 pid=5)
+      sendObdFrame(); // Передача запроса по CAN шине.(obd2 "01 05")
     } else {
       Serial.println("CAN BUS DOWN..");
     }
     previousMillis = currentMillis;
   }
 
-  // Принимаем пакеты CAN..
+  // Принимаем все пакеты CAN..
   if(can_read(&rxFrame)) {
     can_counter++;
     String str_min = str_obd2_min(rxFrame.data)+"\r\n"; //min format
     String str_ext = str_obd2_ext(rxFrame)+"\r\n"; //ext format
-    Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
+    //Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
 
     if (flag_cycle){  //одна постоянная команда в своем цикле
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
+          sent_counter = 0; //подтверждение приема пакета "01 05"
           collant = rxFrame.data[3] - 40;  //расчет
           if(!flag_ext_format) ble_handle_tx(String(collant)+"°C\r\n");
           else ble_handle_tx(str_ext); //to BLE ext format
@@ -153,7 +158,9 @@ String str_obd2_min(uint8_t arr[]){
     }
     return rez;
 }
+/*
 int StrToHex(char str[])
 {
   return (int) strtol(str, 0, 16);
 }
+*/
