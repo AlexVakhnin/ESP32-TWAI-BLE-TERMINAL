@@ -16,6 +16,7 @@ extern uint32_t can_rx_queue();
 extern void ble_setup();
 extern String hex_arr8(uint8_t arr[]);
 extern void ble_handle_tx(String str);
+extern void ticker_init();
 
 void sendObdFrame();
 String str_obd2_ext(twai_message_t& message);
@@ -25,6 +26,7 @@ unsigned long previousMillis = 0;
 unsigned long interval = 1500;  //интервал цикла запросов obd2
 bool flag_cycle = false;    //в цикле посылать obd2 запрос
 bool flag_ext_format = false;   //формат отображения входящего пакета obd2
+bool flag_error = false;  //для индикации ошибки по CAN шине в цикле
 int collant = 0; //температура двигателя
 int can_counter = 0; //счетчик принятых CAN пакетов
 int sent_counter = 0; //счетчик при передаче CAN пакетов
@@ -63,6 +65,8 @@ void setup() {
         Serial.println("CAN bus failed!");
     }
 
+    ticker_init(); //индикация и звук
+
   Serial.println("----------------Start Info-----------------");
   Serial.printf("Total heap:\t%d \r\n", ESP.getHeapSize());
   Serial.printf("Free heap:\t%d \r\n", ESP.getFreeHeap());
@@ -78,7 +82,7 @@ void loop() {
 unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >=interval && flag_cycle) {
     sent_counter++; //считаем переданные пакеты "01 05"
-    if(sent_counter>2){ble_handle_tx("CYCLE ERROR..\r\n");} //DEBUG
+    if(sent_counter>1){ble_handle_tx("CYCLE ERROR..\r\n");flag_error = true;} //CAN issue
     if(can_tx_queue()<3){
       sendObdFrame(); // Передача запроса по CAN шине.(obd2 "01 05")
     } else {
@@ -97,6 +101,7 @@ unsigned long currentMillis = millis();
     if (flag_cycle){  //одна постоянная команда в своем цикле
       if(rxFrame.identifier == 0x7E8 && rxFrame.data[1]==0x41 && rxFrame.data[2]==5) {   //ID=0x7E8
           sent_counter = 0; //подтверждение приема пакета "01 05"
+          flag_error = false; //сброс индикации ошибки
           collant = rxFrame.data[3] - 40;  //расчет
           if(!flag_ext_format) ble_handle_tx(String(collant)+"°C\r\n");
           else ble_handle_tx(str_ext); //to BLE ext format
