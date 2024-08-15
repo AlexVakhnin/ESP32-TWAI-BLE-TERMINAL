@@ -60,7 +60,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
       //}
       Serial.print("Event-Connect..");Serial.println(remoteAddress);
       deviceConnected = true;
-      digitalWrite(8, LOW); //internal led = ON (DEBUG..)
+      //digitalWrite(8, LOW); //internal led = ON (DEBUG..)
     };
 
     void onDisconnect(BLEServer* pServer) {
@@ -68,7 +68,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
       Serial.println("Event-Disconnect..");
       delay(300); // give the bluetooth stack the chance to get things ready
       BLEDevice::startAdvertising();  // restart advertising
-      digitalWrite(8, HIGH); //internal led = OFF (DEBUG..)
+      //digitalWrite(8, HIGH); //internal led = OFF (DEBUG..)
     }
 };
 

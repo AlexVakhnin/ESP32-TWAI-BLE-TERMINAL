@@ -19,7 +19,7 @@ extern void ble_handle_tx(String str);
 
 void sendObdFrame();
 String str_obd2_ext(twai_message_t& message);
-String str_obd2_min(uint8_t arr[]);
+String str_obd2_min(twai_message_t& message);
 
 unsigned long previousMillis = 0;
 unsigned long interval = 1500;  //интервал цикла запросов obd2
@@ -90,7 +90,7 @@ unsigned long currentMillis = millis();
   // Принимаем все пакеты CAN..
   if(can_read(&rxFrame)) {
     can_counter++;
-    String str_min = str_obd2_min(rxFrame.data)+"\r\n"; //min format
+    String str_min = str_obd2_min(rxFrame)+"\r\n"; //min format
     String str_ext = str_obd2_ext(rxFrame)+"\r\n"; //ext format
     //Serial.print("--["+String(ESP.getFreeHeap())+"] ["+String(can_counter)+"] "+str_ext); //debug
 
@@ -128,14 +128,14 @@ void sendObdFrame() {
     }
 }
 
-//принятый пакет CAN в строку в расширенном формате
+//принятый пакет CAN в строку в расширенном формате (sniffer)
 String str_obd2_ext(twai_message_t& message){
   String rez = "";
   char buf[3];
   if (message.extd) rez+="CAX: 0x";
   else rez+="CAN: 0x";
   rez+=String(message.identifier,HEX);
-  int n=message.data_length_code;
+  int n=message.data_length_code; //длина пакета CAN (DLC)
   rez+=" [";rez+=String(n);rez+="] ";
   for (int i=0; i < n; i++){
     if (i != 0)  rez+=" ";
@@ -144,23 +144,32 @@ String str_obd2_ext(twai_message_t& message){
   } 
   return rez;
 }
-//принятый пакет CAN в строку в минимальном формате
-String str_obd2_min(uint8_t arr[]){
+//принятый пакет OBD2 (8 байт!) в строку в минимальном формате
+String str_obd2_min(twai_message_t& message){
     String rez = "";
-    int n= arr[0];  //количество значащих байт в пакете(3)
-    if(n>7) n=7; //фильтр по длине
+    char buf[4]; //буфер для перевода в HEX
+    int dlc=message.data_length_code;  //длина пакета
+    int n= message.data[0];  //количество значащих байт в пакете(3)
+    if(dlc!=8 || n>7) return "???"; //фильтр
+    //if(n>7) n=7; //фильтр по длине
     for(int i=1;i<n+1;i++){ //[1,2,3]
-        char buf[4+3]; //буфер для перевода в HEX
-        if(i != n) sprintf( buf , "%.2X ", arr[i] ); //кроме последнего(3)
-        //else sprintf( buf , "%.2X \r\r>", arr[i] );  //последний c добавкой 0D:0D:3E
-        else sprintf( buf , "%.2X", arr[i] );  //последний , без пробела
+        if(i != n) sprintf( buf , "%.2X ", message.data[i] ); //кроме последнего(3)
+        else sprintf( buf , "%.2X", message.data[i] );  //последний , без пробела
         rez+=String(buf);  //добавляем в результат
     }
     return rez;
 }
 /*
-int StrToHex(char str[])
-{
-  return (int) strtol(str, 0, 16);
+String str_obd2_min(uint8_t arr[]){
+    String rez = "";
+    char buf[4]; //буфер для перевода в HEX
+    int n= arr[0];  //количество значащих байт в пакете(3)
+    if(n>7) n=7; //фильтр по длине
+    for(int i=1;i<n+1;i++){ //[1,2,3]
+        if(i != n) sprintf( buf , "%.2X ", arr[i] ); //кроме последнего(3)
+        else sprintf( buf , "%.2X", arr[i] );  //последний , без пробела
+        rez+=String(buf);  //добавляем в результат
+    }
+    return rez;
 }
 */
