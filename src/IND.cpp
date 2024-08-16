@@ -2,15 +2,17 @@
 #include <Ticker.h>
 
 #define TEMP_COOLER_ON 98  //температура включения вентилятора (98)
-#define TEMP_WINTER_OK 30  //температура зимнего прогрева двигателя
+#define TEMP_WINTER_OK 35  //температура зимнего прогрева двигателя
+
 #define SOUND_ON 0  //состояние порта, когда звук включен
 #define SOUND_OFF 1 //состояние порта, когда звук выключен
-#define BUZZER_PIN 21  //номер порта для управления звуком
+#define BUZZER_PIN 8  //номер порта для управления звуком
 
 #define LED_ON 0  //состояние порта, когда светодиод включен
 #define LED_OFF 1 //состояние порта, когда светодиод выключен
-#define LED_PIN 8  //номер порта для управления светодиодом
+#define LED_PIN 21  //номер порта для управления светодиодом
 
+//входные параметры для индикации
 extern bool flag_error; //ошибка в цикле опроса OBD2
 extern int collant; //текущая температура двигателя
 
@@ -46,13 +48,14 @@ void temp_watch(){
         else if(collant > TEMP_COOLER_ON + 1 ) sound_state = 3; //перегрев (непрерывный сигн.)
         else { sound_state = 0;}
         */
-        if(collant<TEMP_WINTER_OK-10){  //<20
+        
+        if(collant<TEMP_WINTER_OK-10){  //<25
             sound_state=0;led_state=2;  //только светим
         }
-        else if(collant>=TEMP_WINTER_OK-10 && collant<TEMP_WINTER_OK){  //20-30
+        else if(collant>=TEMP_WINTER_OK-10 && collant<TEMP_WINTER_OK){  //25-34
             sound_state=0;led_state=1;  //только мигаем
         }
-        else if(collant>=TEMP_WINTER_OK && collant<TEMP_COOLER_ON-6){  //30-92
+        else if(collant>=TEMP_WINTER_OK && collant<TEMP_COOLER_ON-6){  //35-91
             sound_state=0;led_state=0;  //нет сигналов
         }
         else if(collant>=TEMP_COOLER_ON-6 && collant<TEMP_COOLER_ON){  //92-97
@@ -64,11 +67,13 @@ void temp_watch(){
         else if(collant == TEMP_COOLER_ON + 1 ){  //=99
             sound_state = 2;led_state=1;  //мигаем + двойной звуковой сигнал
         }
-        else if(collant > TEMP_COOLER_ON + 1 ){  //>=100
+        else if(collant > TEMP_COOLER_ON + 1 ){  //>99
             sound_state = 3;led_state=2;  //непрерывный свет и сигнал (перегрев)
         }
         else { sound_state = 0;led_state=0;} //заглушка
+        
     }
+    
 }
 
 //сигнал=2 тика, пауза=40 тиков
