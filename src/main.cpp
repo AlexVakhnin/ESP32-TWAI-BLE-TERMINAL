@@ -51,8 +51,8 @@ void setup() {
   Serial.begin(115200);
 
   //internal led
-  pinMode(8, OUTPUT);
-  digitalWrite(8, HIGH); //OFF
+  //pinMode(8, OUTPUT);
+  //digitalWrite(8, HIGH); //OFF
 
   delay(10000);  //10 sec
 
