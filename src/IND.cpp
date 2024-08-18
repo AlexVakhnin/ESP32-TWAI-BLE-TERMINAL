@@ -24,7 +24,8 @@ extern int collant; //текущая температура двигателя
 // 2-двойной периодический звуковой сигнал 
 // 3-непрерывный звуковой сигнал (перегрев)
 // 4-одиночный частый периодический сигнал (ошибка по шине CAN)
-// 5-одиночный однократный сигнал (внимание..)
+// 5-однократный трехтоновый сигнал (внимание..)
+// 6-однократный однотоновый сигнал (старт..)
 int sound_state = 0;
 
 //режим световой индикации
@@ -36,6 +37,7 @@ int led_state = 0;
 int blink_counter =1; //счетчик звуковых сигналов в периоде
 int s_counter = 0; //для измерения времени (звук)
 int l_counter = 0; //для измерения времени (светодиод)
+int old_collant = 0; //температура от предыдущего опроса
 
 Ticker hTicker;
 
@@ -44,18 +46,11 @@ void temp_watch(){
     if (flag_error) {
         sound_state = 4; //индикация ошибки
     }
-    else if(sound_state==5){
+    else if(sound_state==5 || sound_state==6){
         //однократный звуковой сигнал - просто пропускаем..
     }
     else {
-        //проходим весь диапазон температур
-        /*
-        if(collant == TEMP_COOLER_ON ) sound_state = 1;
-        else if(collant == TEMP_COOLER_ON + 1 ) sound_state = 2;
-        else if(collant > TEMP_COOLER_ON + 1 ) sound_state = 3; //перегрев (непрерывный сигн.)
-        else { sound_state = 0;}
-        */
-        
+        //проходим весь диапазон температур        
         if(collant<TEMP_WINTER_OK-10){  //<25
             sound_state=0;led_state=2;  //только светим
         }
@@ -171,8 +166,8 @@ void handle_2_8(){
     }
 }
 
-//однократный звуковой сигнал=2 тика (внимание..)
-void handle_attention(){
+//однократный звуковой сигнал=2 тика (старт..)
+void handle_start(){
     if (s_counter>0) s_counter--;  //считаем тики (пауза..)
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF) {   // __/--
@@ -184,6 +179,32 @@ void handle_attention(){
             noTone(TONE_PIN);
             sound_state=0;
        } 
+    }
+}
+
+
+//однократный трехтоновый сигнал=2*3 тика (внимание..)
+void handle_attention(){
+    if (s_counter>0) s_counter--;  //считаем тики (пауза..)
+    else { //логика переходов
+        if (digitalRead(BUZZER_PIN)==SOUND_OFF){   // __/--
+            digitalWrite(BUZZER_PIN, SOUND_ON);
+            tone(TONE_PIN,1800);
+            s_counter=2;blink_counter=2;
+        } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==2){   // __/-- 2
+            //digitalWrite(BUZZER_PIN, SOUND_OFF);
+            tone(TONE_PIN,1700);
+            s_counter=2;blink_counter=3;
+        } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==3){  // __/-- 3
+            //digitalWrite(BUZZER_PIN, SOUND_ON);
+            tone(TONE_PIN,1600);
+            s_counter=2;blink_counter=4;
+        } else {                                                            // --\__ 
+            digitalWrite(BUZZER_PIN, SOUND_OFF);
+            noTone(TONE_PIN);
+            blink_counter=1;
+            sound_state=0;
+        }
     }
 }
 
@@ -206,6 +227,13 @@ void t_40ms_job(){
     
     temp_watch();  //следим за температурой двигателя и ошибками
 
+    //ловим событиe - переход через TEMP_WINTER_OK
+    if(old_collant<TEMP_WINTER_OK && collant ==TEMP_WINTER_OK && sound_state!=5){
+        sound_state=5;
+    }
+    old_collant = collant; //сохраним для следующего тика
+
+
     //распределитель..звук
     if (sound_state==1){ //2-40
         handle_2_40();
@@ -215,16 +243,15 @@ void t_40ms_job(){
     }
     else if (sound_state==3){ //перегрев !!!
         handle_2_1_2_1_2_20();
-        //if(digitalRead(BUZZER_PIN)==SOUND_OFF){
-        //    digitalWrite(BUZZER_PIN, SOUND_ON);
-        //    tone(TONE_PIN,1500);
-        //}
     }
     else if (sound_state==4){ //2-8 (ошибка)
         handle_2_8();
     }
-    else if (sound_state==5){ //2-0 (внимание..)
-        handle_attention();//Serial.println("!");
+    else if (sound_state==5){ //2*3 (внимание..)
+        handle_attention();
+    }
+    else if (sound_state==6){ //2-0 (старт..)
+        handle_start();
     }
     else {
         if(digitalRead(BUZZER_PIN)==SOUND_ON){
@@ -259,6 +286,6 @@ void ticker_init() {
 
     hTicker.attach_ms(40, t_40ms_job); //1 тик = 40мс
 
-    sound_state = 5; //однократный звуковой сигнал
+    sound_state = 6; //однократный звуковой сигнал
 }
 
