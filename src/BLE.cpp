@@ -148,7 +148,7 @@ void ble_setup(){
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
   filter = preferences.getInt("filter", 0x7E8);
-  flag_cycle = preferences.getBool("flag_cycle", false);
+  flag_cycle = preferences.getBool("flag_cycle", true);
   flag_ext_format = preferences.getBool("flag_ext_format", false);
   int len = preferences.getBytes("send_content", send_content, 8);
   Serial.println("send_content Len = "+String(len));
