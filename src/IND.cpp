@@ -9,6 +9,7 @@
 
 #define LED_ON 0  //состояние порта, когда светодиод включен
 #define LED_OFF 1 //состояние порта, когда светодиод выключен
+
 //свободны только 0,1,3,10 (20,21 UART1 - используется во время прошивки)
 #define BUZZER_PIN 1  //активный зуммер - порт
 #define TONE_PIN 0   //пассивный зуммер - порт
@@ -20,12 +21,12 @@ extern int collant; //текущая температура двигателя
 
 //звуковой режим 0,1,2,3,4
 // 0-нет звука
-// 1-одиночный периодический звуковой сигнал (t-включения вентилятора)
-// 2-двойной периодический звуковой сигнал 
-// 3-непрерывный звуковой сигнал (перегрев)
-// 4-одиночный частый периодический сигнал (ошибка по шине CAN)
-// 5-однократный трехтоновый сигнал (внимание..)
-// 6-однократный однотоновый сигнал (старт..)
+// 1-одиночный периодический (t-вент.)
+// 2-двойной периодический (t-вент. +1)
+// 3-тройной периодический (перегрев)
+// 4-одиночный частый периодический (ошибка по шине CAN)
+// 5-однократный трехтоновый (внимание..)
+// 6-однократный (старт..)
 int sound_state = 0;
 
 //режим световой индикации
@@ -47,7 +48,7 @@ void temp_watch(){
         sound_state = 4; //индикация ошибки
     }
     else if(sound_state==5 || sound_state==6){
-        //однократный звуковой сигнал - просто пропускаем..
+        //однократные звуковые сигналы - просто пропускаем..
     }
     else {
         //проходим весь диапазон температур        
@@ -78,7 +79,7 @@ void temp_watch(){
     
 }
 
-//звуковой сигнал=2 тика, пауза=40 тиков
+//звуковой сигнал=2тика, пауза=40 тиков
 void handle_2_40(){
     if (s_counter>0) s_counter--;  //считаем тики (пауза..)
     else { //логика переходов
@@ -118,7 +119,7 @@ void  handle_2_1_2_37(){
     }
 }
 
-//три звуковых сигнала по 2 тика, пауза=20 тиков
+//три звуковых сигнала по 2 тика, пауза=20 тиков (перегрев..)
 void  handle_2_1_2_1_2_20(){
     if (s_counter>0) s_counter--;  //считаем тики (пауза..)
     else { //логика переходов
@@ -189,17 +190,15 @@ void handle_attention(){
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF){   // __/--
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,1800);
+            tone(TONE_PIN,1600);
             s_counter=2;blink_counter=2;
         } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==2){   // __/-- 2
-            //digitalWrite(BUZZER_PIN, SOUND_OFF);
             tone(TONE_PIN,1700);
             s_counter=2;blink_counter=3;
         } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==3){  // __/-- 3
-            //digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,1600);
-            s_counter=2;blink_counter=4;
-        } else {                                                            // --\__ 
+            tone(TONE_PIN,1800);
+            s_counter=2;blink_counter=4;//исключаем верхние условия..
+        } else {                                                            // --\__  4
             digitalWrite(BUZZER_PIN, SOUND_OFF);
             noTone(TONE_PIN);
             blink_counter=1;
@@ -244,13 +243,13 @@ void t_40ms_job(){
     else if (sound_state==3){ //перегрев !!!
         handle_2_1_2_1_2_20();
     }
-    else if (sound_state==4){ //2-8 (ошибка)
+    else if (sound_state==4){ //ошибка CAN
         handle_2_8();
     }
-    else if (sound_state==5){ //2*3 (внимание..)
+    else if (sound_state==5){ //внимание..
         handle_attention();
     }
-    else if (sound_state==6){ //2-0 (старт..)
+    else if (sound_state==6){ //старт..
         handle_start();
     }
     else {
@@ -262,30 +261,30 @@ void t_40ms_job(){
 
     //распределитель..LED
     if (led_state==1){
-        led_handle_8_8();  //светодиод мигает
+        led_handle_8_8();  //мигаем
     }
     else if (led_state==2){
-        digitalWrite(LED_PIN, LED_ON); //светодиод включен
+        digitalWrite(LED_PIN, LED_ON); //включен
     }
     else {
-        digitalWrite(LED_PIN, LED_OFF); //светодиод выключен
+        digitalWrite(LED_PIN, LED_OFF); //выключен
     }
 }
 
-//индикация и звук
+//инициализация
 void ticker_init() {
 
-    pinMode(BUZZER_PIN, OUTPUT);  //активный зуммер
-    digitalWrite(BUZZER_PIN, SOUND_OFF); //SOUND OFF
+    pinMode(BUZZER_PIN, OUTPUT);    //активный зуммер
+    digitalWrite(BUZZER_PIN, SOUND_OFF);
 
-    pinMode(TONE_PIN,OUTPUT);  //пассивный зуммер
+    pinMode(TONE_PIN,OUTPUT);       //пассивный зуммер
     //noTone(TONE_PIN);
 
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, LED_OFF); //LED OFF
+    pinMode(LED_PIN, OUTPUT);       //светодиод
+    digitalWrite(LED_PIN, LED_OFF);
 
     hTicker.attach_ms(40, t_40ms_job); //1 тик = 40мс
 
-    sound_state = 6; //однократный звуковой сигнал
+    sound_state = 6; //сигнал "старт"
 }
 
