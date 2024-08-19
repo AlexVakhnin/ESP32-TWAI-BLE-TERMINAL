@@ -17,6 +17,8 @@ extern void ble_setup();
 extern String hex_arr8(uint8_t arr[]);
 extern void ble_handle_tx(String str);
 extern void ticker_init();
+extern void e_led_on();
+extern void e_led_off();
 
 void sendObdFrame();
 String str_obd2_ext(twai_message_t& message);
@@ -85,6 +87,7 @@ unsigned long currentMillis = millis();
     if(sent_counter>1){ble_handle_tx("CYCLE ERROR..\r\n");flag_error = true;} //CAN issue
     if(can_tx_queue()<3){
       sendObdFrame(); // Передача запроса по CAN шине.(obd2 "01 05")
+      e_led_on();//индикация на светодиод
     } else {
       Serial.println("CAN BUS DOWN..");
     }
@@ -105,6 +108,7 @@ unsigned long currentMillis = millis();
           collant = rxFrame.data[3] - 40;  //расчет
           if(!flag_ext_format) ble_handle_tx(String(collant)+"°C\r\n");
           else ble_handle_tx(str_ext); //to BLE ext format
+          e_led_off();//индикация на светодиод
       }
     } else { //сниффер и обработка команд BLE
 

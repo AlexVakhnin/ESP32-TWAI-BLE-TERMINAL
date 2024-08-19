@@ -2,18 +2,18 @@
 #include <Ticker.h>
 
 #define TEMP_COOLER_ON 98  //температура включения вентилятора (98)
-#define TEMP_WINTER_OK 35  //температура зимнего прогрева двигателя
+#define TEMP_WINTER_OK 45  //температура зимнего прогрева двигателя
 
 #define SOUND_ON 0  //состояние порта, когда звук включен (пассивный зуммер)
 #define SOUND_OFF 1 //состояние порта, когда звук выключен (пассивный зуммер)
 
-#define LED_ON 0  //состояние порта, когда светодиод включен
-#define LED_OFF 1 //состояние порта, когда светодиод выключен
+#define LED_ON 1  //состояние порта, когда светодиод включен
+#define LED_OFF 0 //состояние порта, когда светодиод выключен
 
 //свободны только 0,1,3,10 (20,21 UART1 - используется во время прошивки)
 #define BUZZER_PIN 1  //активный зуммер - порт
 #define TONE_PIN 0   //пассивный зуммер - порт
-#define LED_PIN 8  //светодиод - порт (10)
+#define LED_PIN 10  //светодиод - порт (10)
 
 //входные параметры для индикации
 extern bool flag_error; //ошибка в цикле опроса OBD2
@@ -55,10 +55,10 @@ void temp_watch(){
         if(collant<TEMP_WINTER_OK-10){  //<25
             sound_state=0;led_state=2;  //только светим
         }
-        else if(collant>=TEMP_WINTER_OK-10 && collant<TEMP_WINTER_OK){  //25-34
+        else if(collant>=TEMP_WINTER_OK-10 && collant<TEMP_WINTER_OK){  //35-44
             sound_state=0;led_state=1;  //только мигаем
         }
-        else if(collant>=TEMP_WINTER_OK && collant<TEMP_COOLER_ON-6){  //35-91
+        else if(collant>=TEMP_WINTER_OK && collant<TEMP_COOLER_ON-6){  //45-91
             sound_state=0;led_state=0;  //нет сигналов
         }
         else if(collant>=TEMP_COOLER_ON-6 && collant<TEMP_COOLER_ON){  //92-97
@@ -85,7 +85,7 @@ void handle_2_40(){
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF) {   // __/--
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,1500);
+            tone(TONE_PIN,1838);
             s_counter=2;
         } else {                                    // --\__
             digitalWrite(BUZZER_PIN, SOUND_OFF);
@@ -101,7 +101,7 @@ void  handle_2_1_2_37(){
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF && blink_counter==1){        // __/-- 1
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,1800);
+            tone(TONE_PIN,1919);
             s_counter=2;
         } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==1){   // --\__ 1
             digitalWrite(BUZZER_PIN, SOUND_OFF);
@@ -109,7 +109,7 @@ void  handle_2_1_2_37(){
             s_counter=1;blink_counter=2;
         } else if(digitalRead(BUZZER_PIN)==SOUND_OFF && blink_counter==2){  // __/-- 2
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,1800);
+            tone(TONE_PIN,1919);
             s_counter=2;
         } else {                                                            // --\__ 2
             digitalWrite(BUZZER_PIN, SOUND_OFF);
@@ -125,7 +125,7 @@ void  handle_2_1_2_1_2_20(){
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF && blink_counter==1){        // __/-- 1
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,2000);
+            tone(TONE_PIN,2004);
             s_counter=2;
         } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==1){   // --\__ 1
             digitalWrite(BUZZER_PIN, SOUND_OFF);
@@ -133,7 +133,7 @@ void  handle_2_1_2_1_2_20(){
             s_counter=1;blink_counter=2;
         } else if (digitalRead(BUZZER_PIN)==SOUND_OFF && blink_counter==2){ // __/-- 2
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,2000);
+            tone(TONE_PIN,2004);
             s_counter=2;
         } else if(digitalRead(BUZZER_PIN)==SOUND_ON && blink_counter==2){   // --\__ 2
             digitalWrite(BUZZER_PIN, SOUND_OFF);
@@ -141,7 +141,7 @@ void  handle_2_1_2_1_2_20(){
             s_counter=1;blink_counter=3;
         } else if(digitalRead(BUZZER_PIN)==SOUND_OFF && blink_counter==3){  // __/-- 3
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,2000);
+            tone(TONE_PIN,2004);
             s_counter=2;
         } else {                                                            // --\__ 3
             digitalWrite(BUZZER_PIN, SOUND_OFF);
@@ -288,3 +288,15 @@ void ticker_init() {
     sound_state = 6; //сигнал "старт"
 }
 
+//даем возможность использовать светодиод для отображения
+//активности по шине CAN
+void e_led_on(){
+    if(led_state==0){
+        digitalWrite(LED_PIN, LED_ON);
+    }
+}
+void e_led_off(){
+    if(led_state==0){
+        digitalWrite(LED_PIN, LED_OFF);
+    }
+}
