@@ -11,13 +11,14 @@
 #define LED_OFF 0 //состояние порта, когда светодиод выключен
 
 //свободны только 0,1,3,10 (20,21 UART1 - используется во время прошивки)
-#define BUZZER_PIN 1  //активный зуммер - порт
-#define TONE_PIN 0   //пассивный зуммер - порт
+#define BUZZER_PIN 8  //активный зуммер - порт (1)
+#define TONE_PIN 0   //пассивный зуммер - порт (0)
 #define LED_PIN 10  //светодиод - порт (10)
 
 //входные параметры для индикации
 extern bool flag_error; //ошибка в цикле опроса OBD2
 extern int collant; //текущая температура двигателя
+extern bool flag_cycle;
 
 //звуковой режим 0,1,2,3,4
 // 0-нет звука
@@ -33,12 +34,14 @@ int sound_state = 0;
 // 0-светодиод постоянно выключен
 // 1-светодиод мигает
 // 2-светодиод постоянно включен
+// 3-однократный миг светодиодом
 int led_state = 0;
 
 int blink_counter =1; //счетчик звуковых сигналов в периоде
 int s_counter = 0; //для измерения времени (звук)
 int l_counter = 0; //для измерения времени (светодиод)
 int old_collant = 0; //температура от предыдущего опроса
+//bool flag_ind = false; //вел./выкл. индикация
 
 Ticker hTicker;
 
@@ -47,7 +50,7 @@ void temp_watch(){
     if (flag_error) {
         sound_state = 4; //индикация ошибки
     }
-    else if(sound_state==5 || sound_state==6){
+    else if(sound_state==5 || sound_state==6 || led_state==3){
         //однократные звуковые сигналы - просто пропускаем..
     }
     else {
@@ -221,9 +224,25 @@ void led_handle_8_8(){
     }
 }
 
+//однократная вспышка светодиодом
+void led_handle_1_mig(){
+    if (l_counter>0) l_counter--;  //считаем тики (пауза..)
+    else { //логика переходов
+        if (digitalRead(LED_PIN)==LED_OFF) {   // __/--
+            digitalWrite(LED_PIN, LED_ON);
+            l_counter=1;
+        } else {                               // --\__
+            digitalWrite(LED_PIN, LED_OFF);
+            led_state=0;
+        } 
+    }
+}
+
 //процедура каждые 40 милисекунд
 void t_40ms_job(){
-    
+
+    if(!flag_cycle) return;  //индикация работает только в режиме цикл
+
     temp_watch();  //следим за температурой двигателя и ошибками
 
     //ловим событиe - переход через TEMP_WINTER_OK
@@ -266,6 +285,9 @@ void t_40ms_job(){
     else if (led_state==2){
         digitalWrite(LED_PIN, LED_ON); //включен
     }
+    else if (led_state==3){
+        led_handle_1_mig(); //однократный миг
+    }
     else {
         digitalWrite(LED_PIN, LED_OFF); //выключен
     }
@@ -290,13 +312,17 @@ void ticker_init() {
 
 //даем возможность использовать светодиод для отображения
 //активности по шине CAN
-void e_led_on(){
+void e_led_mig(){
     if(led_state==0){
-        digitalWrite(LED_PIN, LED_ON);
+        led_state=3;
     }
 }
-void e_led_off(){
-    if(led_state==0){
-        digitalWrite(LED_PIN, LED_OFF);
-    }
+
+//индикация - стоп
+void ind_stop(){
+    sound_state = 0;
+    led_state = 0;
+    digitalWrite(BUZZER_PIN, SOUND_OFF);
+    noTone(TONE_PIN);
+    digitalWrite(LED_PIN, LED_OFF);
 }

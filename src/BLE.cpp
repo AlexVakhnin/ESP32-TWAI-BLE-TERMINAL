@@ -17,6 +17,7 @@ extern int filter;
 
 extern uint32_t can_tx_queue();
 extern void sendObdFrame();
+extern void ind_stop();
 
 void storage_dev_name(String dname);
 void storage_filter(String sfilter);
@@ -108,6 +109,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }
             else if (pstr=="atc=0"||pstr=="atc=0\r\n") { //flag_cycle = off
                 flag_cycle = false;
+                ind_stop();
                 ble_handle_tx("cycle=off\r\n");
             }            
             else if (pstr=="atc=1"||pstr=="atc=1\r\n") { //flag_cycle = on
