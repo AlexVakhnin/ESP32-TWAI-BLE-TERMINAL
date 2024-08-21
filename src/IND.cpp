@@ -154,18 +154,18 @@ void  handle_2_1_2_1_2_20(){
     }
 }
 
-//звуковой сигнал=2 тика, пауза=8 тиков (частый)
-void handle_2_8(){
+//звуковой сигнал=1 тик (ошибка CAN)
+void handle_can_down(){
     if (s_counter>0) s_counter--;  //считаем тики (пауза..)
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF) {   // __/--
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,1500);
-            s_counter=2;
+            tone(TONE_PIN,300);
+            s_counter=1;
         } else {                                    // --\__
             digitalWrite(BUZZER_PIN, SOUND_OFF);
             noTone(TONE_PIN);
-            s_counter=8;
+            s_counter=1000;
        } 
     }
 }
@@ -263,7 +263,7 @@ void t_40ms_job(){
         handle_2_1_2_1_2_20();
     }
     else if (sound_state==4){ //ошибка CAN
-        handle_2_8();
+        handle_can_down();
     }
     else if (sound_state==5){ //внимание..
         handle_attention();
@@ -301,6 +301,7 @@ void ticker_init() {
 
     pinMode(TONE_PIN,OUTPUT);       //пассивный зуммер
     //noTone(TONE_PIN);
+    delay(500);
 
     pinMode(LED_PIN, OUTPUT);       //светодиод
     digitalWrite(LED_PIN, LED_OFF);

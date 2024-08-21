@@ -82,7 +82,7 @@ unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >=interval && flag_cycle) {
     sent_counter++; //считаем переданные пакеты "01 05"
     if(sent_counter>1){ble_handle_tx("CYCLE ERROR..\r\n");flag_error = true;} //CAN issue
-    if(can_tx_queue()<3){
+    if(can_tx_queue()==0){
       sendObdFrame(); // Передача запроса по CAN шине.(obd2 "01 05")
     } else {
       Serial.println("CAN BUS DOWN..");
