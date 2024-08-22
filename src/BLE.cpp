@@ -18,6 +18,8 @@ extern int filter;
 extern uint32_t can_tx_queue();
 extern void sendObdFrame();
 extern void ind_stop();
+//extern void obd2_01_05_handle();
+extern void obd2_ble_handle(String str);
 
 void storage_dev_name(String dname);
 void storage_filter(String sfilter);
@@ -25,7 +27,7 @@ void storage_send_content();
 void help_print();
 void reset_nvram();
 String hex_arr8(uint8_t arr[]);
-void obd2_01_05_handle();
+//void obd2_01_05_handle();
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
@@ -128,8 +130,12 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             else if (pstr=="at+m"||pstr=="at+m\r\n") { //storage send_content
                 storage_send_content();
             }            
-            else if (pstr=="01 05"||pstr=="01 05\r\n") { //elm327 imitation
-                obd2_01_05_handle();
+            //else if (pstr=="01 05"||pstr=="01 05\r\n") { //elm327 imitation DEBUG
+            //    obd2_01_05_handle();
+            //}                        
+            else if (pstr.substring(0,1)=="0") { //elm327 imitation !!!
+                //obd2_01_05_handle();  //DEBUG
+                obd2_ble_handle(pstr.substring(0,5));
             }                        
             else if (pstr.substring(0,4)=="atn=") { //atn= - dev_name save NVRAM
                 storage_dev_name(pstr.substring(4)); //dev_name
@@ -264,19 +270,7 @@ void reset_nvram(){
   delay(3000);
   ESP.restart();
 }
-//команда "01 05" - запрос температуры ОЖ в obd2
-void obd2_01_05_handle(){
-    flag_cycle = false; //остановить циклический запрос obd2 
-    if(can_tx_queue()==0){
-        for(int i=0;i<8;i++) send_content[i] = 0xAA;
-        send_content[0]=2;
-        send_content[1]=1;
-        send_content[2]=5;
-        sendObdFrame(); // Передача запроса по CAN шине.(obd2 pid=5)
-    } else {
-        ble_handle_tx("CAN BUS DOWN..\r\n");
-    }
-}
+
 //преобразовать массив 8 байт в HEX строку: xx:xx:xx:xx:xx:xx:xx:xx
 String hex_arr8(uint8_t arr[]){
     char buf[24]; //буфер для перевода в HEX

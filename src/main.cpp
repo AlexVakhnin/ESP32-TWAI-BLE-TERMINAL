@@ -164,17 +164,3 @@ String str_obd2_min(twai_message_t& message){
     }
     return rez;
 }
-/*
-String str_obd2_min(uint8_t arr[]){
-    String rez = "";
-    char buf[4]; //буфер для перевода в HEX
-    int n= arr[0];  //количество значащих байт в пакете(3)
-    if(n>7) n=7; //фильтр по длине
-    for(int i=1;i<n+1;i++){ //[1,2,3]
-        if(i != n) sprintf( buf , "%.2X ", arr[i] ); //кроме последнего(3)
-        else sprintf( buf , "%.2X", arr[i] );  //последний , без пробела
-        rez+=String(buf);  //добавляем в результат
-    }
-    return rez;
-}
-*/
