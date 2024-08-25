@@ -14,6 +14,7 @@ extern bool flag_ext_format;
 extern uint8_t send_content[];
 extern int can_counter;
 extern int filter;
+extern int winter_temp;
 
 extern uint32_t can_tx_queue();
 extern void sendObdFrame();
@@ -23,6 +24,7 @@ extern void obd2_ble_handle(String str);
 
 void storage_dev_name(String dname);
 void storage_filter(String sfilter);
+void storage_winter_temp(String wtemp);
 void storage_send_content();
 void help_print();
 void reset_nvram();
@@ -100,6 +102,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
               String s ="DeviceName: "+dev_name
                   +"\r\nFilter: 0x"+String(filter,HEX)+" (0x7e8)"
                   +"\r\nFreeMem: "+String(ESP.getFreeHeap())
+                  +"\r\nwinter_temp="+String(winter_temp)
                   +"\r\nCollant: "+String(collant)
                   +"\r\n--------------state---------------"
                   +"\r\nobd2_recv="+hex_arr8(send_content)
@@ -111,7 +114,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }
             else if (pstr=="atc=0"||pstr=="atc=0\r\n") { //flag_cycle = off
                 flag_cycle = false;
-                ind_stop();
+                ind_stop(); //выключаем любую индикацию
                 ble_handle_tx("cycle=off\r\n");
             }            
             else if (pstr=="atc=1"||pstr=="atc=1\r\n") { //flag_cycle = on
@@ -130,11 +133,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             else if (pstr=="at+m"||pstr=="at+m\r\n") { //storage send_content
                 storage_send_content();
             }            
-            //else if (pstr=="01 05"||pstr=="01 05\r\n") { //elm327 imitation DEBUG
-            //    obd2_01_05_handle();
-            //}                        
             else if (pstr.substring(0,1)=="0") { //elm327 imitation !!!
-                //obd2_01_05_handle();  //DEBUG
                 obd2_ble_handle(pstr.substring(0,5));
             }                        
             else if (pstr.substring(0,4)=="atn=") { //atn= - dev_name save NVRAM
@@ -142,6 +141,9 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }
             else if (pstr.substring(0,4)=="atf=") { //atf= - can filter save NVRAM
                 storage_filter(pstr.substring(4)); //filter
+            }
+            else if (pstr.substring(0,4)=="atw=") { //atw= - winter_temp save NVRAM
+                storage_winter_temp(pstr.substring(4));
             }
             
             else {ble_handle_tx("???\r\n");}            
@@ -156,6 +158,7 @@ void ble_setup(){
   preferences.begin("hiveMon", true); //открываем пространство имен NVRAM read only
   dev_name = preferences.getString("dev_name", "ODB2-BLE-GATE");
   filter = preferences.getInt("filter", 0x7E8);
+  winter_temp = preferences.getInt("winter_temp", 40);
   flag_cycle = preferences.getBool("flag_cycle", true);
   flag_ext_format = preferences.getBool("flag_ext_format", false);
   int len = preferences.getBytes("send_content", send_content, 8);
@@ -250,11 +253,26 @@ void storage_filter(String sfilter){
   } else ble_handle_tx("ERROR NUMBER..\r\n");
 }
 
+//сохранить температуру зимнего прогрева
+void storage_winter_temp(String wtemp){
+  int n = wtemp.length(); 
+  String fstr = wtemp.substring(0,n-2); //удалить \r\n в конце строки..
+  int number = (int) strtol( &fstr[0], NULL, 10);
+  if (number>=25 && number<=70) { //test
+    ble_handle_tx("new winter_temp= "+String(number)+"\r\n"); //ответ на BLE
+    winter_temp = number;
+    preferences.begin("hiveMon", false);
+    preferences.putInt("winter_temp", winter_temp);
+    preferences.end();
+  } else ble_handle_tx("ERROR NUMBER..\r\n");
+}
+
 //команда at?
 void help_print(){
   String  shelp="ati - list current state";
         shelp+="\r\natn=[name] - BLE device name";
         shelp+="\r\natf=[filter] - hardware CAN filter";
+        shelp+="\r\natw=[w_temp] - engine warm-up temperature";
         shelp+="\r\natc=1/0 - CAN send cycle on/off";
         shelp+="\r\nate=1/0 - ext format on/off";
         shelp+="\r\nat+m - save current state";

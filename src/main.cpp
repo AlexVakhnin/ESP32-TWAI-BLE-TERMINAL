@@ -31,6 +31,7 @@ int can_counter = 0; //счетчик принятых CAN пакетов
 int sent_counter = 0; //счетчик при передаче CAN пакетов
 //bool flag_cycle_err = false; //нет ответа CAN в цикле
 int filter = 0x7E8; //аппаратный фильтр(0x7E8),  0 - ACCEPT_ALL
+int winter_temp = 40; //температура зимнего прогрева двигателя
 
 String dev_name = "ODB2-BLE-GATE"; //name of BLE service
 uint8_t send_content[] = { //OBD2 пакет (всегда 8 байт)

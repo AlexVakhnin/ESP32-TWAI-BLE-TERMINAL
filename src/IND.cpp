@@ -2,7 +2,7 @@
 #include <Ticker.h>
 
 #define TEMP_COOLER_ON 98  //температура включения вентилятора (98)
-#define TEMP_WINTER_OK 45  //температура зимнего прогрева двигателя
+//#define TEMP_WINTER_OK 40  //температура зимнего прогрева двигателя
 
 #define SOUND_ON 0  //состояние порта, когда звук включен (пассивный зуммер)
 #define SOUND_OFF 1 //состояние порта, когда звук выключен (пассивный зуммер)
@@ -19,6 +19,7 @@
 extern bool flag_error; //ошибка в цикле опроса OBD2
 extern int collant; //текущая температура двигателя
 extern bool flag_cycle;
+extern int winter_temp;
 
 //звуковой режим 0,1,2,3,4
 // 0-нет звука
@@ -55,13 +56,13 @@ void temp_watch(){
     }
     else {
         //проходим весь диапазон температур        
-        if(collant<TEMP_WINTER_OK-10){  //<25
+        if(collant<winter_temp-10){  //<25
             sound_state=0;led_state=2;  //только светим
         }
-        else if(collant>=TEMP_WINTER_OK-10 && collant<TEMP_WINTER_OK){  //35-44
+        else if(collant>=winter_temp-10 && collant<winter_temp){  //35-44
             sound_state=0;led_state=1;  //только мигаем
         }
-        else if(collant>=TEMP_WINTER_OK && collant<TEMP_COOLER_ON-6){  //45-91
+        else if(collant>=winter_temp && collant<TEMP_COOLER_ON-6){  //45-91
             sound_state=0;led_state=0;  //нет сигналов
         }
         else if(collant>=TEMP_COOLER_ON-6 && collant<TEMP_COOLER_ON){  //92-97
@@ -246,7 +247,7 @@ void t_40ms_job(){
     temp_watch();  //следим за температурой двигателя и ошибками
 
     //ловим событиe - переход через TEMP_WINTER_OK
-    if(old_collant<TEMP_WINTER_OK && collant ==TEMP_WINTER_OK && sound_state!=5){
+    if(old_collant<winter_temp && collant ==winter_temp && sound_state!=5){
         sound_state=5;
     }
     old_collant = collant; //сохраним для следующего тика
