@@ -56,16 +56,16 @@ void temp_watch(){
     }
     else {
         //проходим весь диапазон температур        
-        if(collant<winter_temp-10){  //<25
+        if(collant<winter_temp/*-10*/){  //<44
             sound_state=0;led_state=2;  //только светим
         }
-        else if(collant>=winter_temp-10 && collant<winter_temp){  //35-44
-            sound_state=0;led_state=1;  //только мигаем
-        }
+//        else if(collant>=winter_temp-10 && collant<winter_temp){  //35-44
+//            sound_state=0;led_state=1;  //только мигаем
+//        }
         else if(collant>=winter_temp && collant<TEMP_COOLER_ON-6){  //45-91
             sound_state=0;led_state=0;  //нет сигналов
         }
-        else if(collant>=TEMP_COOLER_ON-6 && collant<TEMP_COOLER_ON){  //92-97
+        else if(collant>=TEMP_COOLER_ON-2 && collant<TEMP_COOLER_ON){  //96-97
             sound_state=0;led_state=1;  //только мигаем
         }
         else if(collant == TEMP_COOLER_ON ){  //=98
