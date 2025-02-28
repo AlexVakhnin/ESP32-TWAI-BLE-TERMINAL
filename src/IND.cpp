@@ -161,12 +161,13 @@ void handle_can_down(){
     else { //логика переходов
         if (digitalRead(BUZZER_PIN)==SOUND_OFF) {   // __/--
             digitalWrite(BUZZER_PIN, SOUND_ON);
-            tone(TONE_PIN,300);
+            tone(TONE_PIN,300/*20048*/); // было 300
             s_counter=1;
         } else {                                    // --\__
             digitalWrite(BUZZER_PIN, SOUND_OFF);
             noTone(TONE_PIN);
-            s_counter=1000;
+            s_counter=20; //было 1000 тут нужно уменьшить, чтоб не забыть выключить ????
+                            //вообще нужен типа длинный гудок )
        } 
     }
 }
