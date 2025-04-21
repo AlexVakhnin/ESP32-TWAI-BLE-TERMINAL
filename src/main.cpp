@@ -54,7 +54,7 @@ void setup() {
   //pinMode(8, OUTPUT);
   //digitalWrite(8, HIGH); //OFF
 
-  delay(10000);  //10 sec
+  delay(1000);//delay(10000);  //10 sec для отладки !
 
   ble_setup(); //start BLE server + load from NVRAM
 

@@ -65,8 +65,8 @@ void temp_watch(){
         else if(collant>=winter_temp && collant<TEMP_COOLER_ON-6){  //45-91
             sound_state=0;led_state=0;  //нет сигналов
         }
-        else if(collant>=TEMP_COOLER_ON-2 && collant<TEMP_COOLER_ON){  //96-97
-            sound_state=0;led_state=1;  //только мигаем
+        else if(collant>=TEMP_COOLER_ON-3 && collant<TEMP_COOLER_ON){  //95-97
+            sound_state=0;led_state=1;  //только мигаем (не глушим мотор)
         }
         else if(collant == TEMP_COOLER_ON ){  //=98
             sound_state = 1;led_state=1;  //мигаем + одинарный звуковой сигнал
