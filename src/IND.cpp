@@ -212,16 +212,16 @@ void handle_attention(){
     }
 }
 
-//мигаем светодиодом
+//мигаем светодиодом (led_state=1)
 void led_handle_8_8(){
     if (l_counter>0) l_counter--;  //считаем тики (пауза..)
     else { //логика переходов
         if (digitalRead(LED_PIN)==LED_OFF) {   // __/--
             digitalWrite(LED_PIN, LED_ON);
-            l_counter=8;
+            l_counter=4;//8
         } else {                               // --\__
             digitalWrite(LED_PIN, LED_OFF);
-            l_counter=8;
+            l_counter=4;//8
         } 
     }
 }
